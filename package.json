@@ -1,0 +1,29 @@
+{
+  "name": "ocs-ai-relay",
+  "version": "1.0.0",
+  "description": "Local OpenAI-compatible relay with retries, judgement-question mapping, web-search augmentation and a web control panel.",
+  "license": "MIT",
+  "main": "relay.js",
+  "scripts": {
+    "start": "node relay.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "ocs",
+    "openai-compatible",
+    "relay",
+    "llm",
+    "quiz"
+  ],
+  "files": [
+    "relay.js",
+    "lib",
+    "public",
+    "README.md",
+    "LICENSE",
+    "config.example.json"
+  ]
+}

@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ocs-ai-relay 控制台</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --panel-2: #1d2129;
+    --line: #2a2f3a;
+    --text: #e6e9ef;
+    --muted: #8b93a3;
+    --accent: #4f8cff;
+    --ok: #35c98b;
+    --warn: #f2b544;
+    --bad: #ef5b5b;
+    --radius: 12px;
+    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-size: 14px; }
+  header { display: flex; align-items: center; gap: 12px; padding: 18px 24px; border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 17px; margin: 0; font-weight: 600; letter-spacing: .2px; }
+  header .ver { color: var(--muted); font-size: 12px; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: #222732; color: var(--muted); font-size: 12px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .dot.ok { background: var(--ok); box-shadow: 0 0 8px rgba(53,201,139,.7); }
+  .dot.bad { background: var(--bad); box-shadow: 0 0 8px rgba(239,91,91,.7); }
+  main { max-width: 1180px; margin: 0 auto; padding: 22px 24px 60px; display: grid; grid-template-columns: 420px 1fr; gap: 18px; }
+  @media (max-width: 960px) { main { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; margin-bottom: 16px; }
+  .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); margin: 0 0 14px; font-weight: 600; }
+  label { display: block; font-size: 12px; color: var(--muted); margin: 12px 0 6px; }
+  label:first-child { margin-top: 0; }
+  input[type=text], input[type=password], input[type=number], select {
+    width: 100%; padding: 9px 11px; background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 8px; outline: none; font-size: 13px;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+  .row { display: flex; gap: 10px; }
+  .row > * { flex: 1; }
+  .inline { display: flex; align-items: center; gap: 8px; margin-top: 14px; color: var(--muted); font-size: 13px; }
+  .inline input { accent-color: var(--accent); }
+  .actions { display: flex; gap: 10px; margin-top: 18px; }
+  button { cursor: pointer; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); padding: 9px 16px; border-radius: 8px; font-size: 13px; }
+  button:hover { border-color: #3a4252; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  button.primary:hover { filter: brightness(1.08); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 8px; line-height: 1.6; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .stat { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  .stat .num { font-size: 22px; font-weight: 700; }
+  .stat .lbl { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .stat.bad .num { color: var(--bad); }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+  td.q { max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  td.a { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .status-ok { color: var(--ok); }
+  .status-bad { color: var(--bad); }
+  .muted { color: var(--muted); }
+  #toast { position: fixed; right: 20px; bottom: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 20; }
+  .toast { background: #222834; border: 1px solid var(--line); border-left: 3px solid var(--accent); padding: 10px 14px; border-radius: 8px; font-size: 13px; box-shadow: 0 10px 30px rgba(0,0,0,.4); animation: in .18s ease; }
+  .toast.ok { border-left-color: var(--ok); }
+  .toast.bad { border-left-color: var(--bad); }
+  @keyframes in { from { transform: translateY(6px); opacity: 0; } to { transform: none; opacity: 1; } }
+  code { background: #10131a; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <span class="dot" id="healthDot"></span>
+  <h1>ocs-ai-relay</h1>
+  <span class="ver">v1.0.0 · 本地中转控制台</span>
+  <span class="pill" id="upstreamPill">读取配置中…</span>
+</header>
+
+<main>
+  <section>
+    <div class="card">
+      <h2>模型服务</h2>
+      <label for="upstream">上游地址（OpenAI 兼容根地址）</label>
+      <input id="upstream" type="text" placeholder="https://api.example.com" />
+      <label for="apiKey">API Key</label>
+      <input id="apiKey" type="password" placeholder="留空则保留当前 Key" />
+      <label for="model">模型覆盖（可留空）</label>
+      <input id="model" type="text" placeholder="留空则使用请求体里的 model" />
+      <div class="row">
+        <div>
+          <label for="maxTokens">最大输出 tokens</label>
+          <input id="maxTokens" type="number" min="64" max="32768" step="64" />
+        </div>
+        <div>
+          <label for="temperature">温度</label>
+          <input id="temperature" type="number" min="0" max="2" step="0.1" />
+        </div>
+      </div>
+      <div class="actions">
+        <button class="primary" id="btnSave">保存并生效</button>
+        <button id="btnTest">测试连通性</button>
+      </div>
+      <div class="hint">配置保存在项目根目录 <code>config.json</code>，保存即生效，无需重启。</div>
+    </div>
+
+    <div class="card">
+      <h2>搜索与策略</h2>
+      <label for="searchMode">联网搜索模式</label>
+      <select id="searchMode">
+        <option value="always">总是搜索（最准，稍慢）</option>
+        <option value="fallback">答不出才搜索</option>
+        <option value="off">关闭搜索</option>
+      </select>
+      <div class="row">
+        <div>
+          <label for="topN">搜索条数</label>
+          <input id="topN" type="number" min="1" max="8" step="1" />
+        </div>
+        <div>
+          <label for="attempts">失败重试次数</label>
+          <input id="attempts" type="number" min="1" max="5" step="1" />
+        </div>
+      </div>
+      <div class="inline">
+        <input id="judgementMap" type="checkbox" />
+        <label for="judgementMap" style="margin:0">判断题：把字母答案映射为「对 / 错」</label>
+      </div>
+      <div class="actions">
+        <button id="btnRefresh">刷新状态</button>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="card">
+      <h2>运行状态</h2>
+      <div class="stats">
+        <div class="stat"><div class="num" id="sTotal">-</div><div class="lbl">最近请求数</div></div>
+        <div class="stat bad"><div class="num" id="sFails">-</div><div class="lbl">失败</div></div>
+        <div class="stat"><div class="num" id="sSearched">-</div><div class="lbl">触发搜索</div></div>
+        <div class="stat"><div class="num" id="sAvg">-</div><div class="lbl">平均耗时 ms</div></div>
+      </div>
+      <div class="hint" id="configHint"></div>
+    </div>
+
+    <div class="card">
+      <h2>最近请求</h2>
+      <table>
+        <thead><tr><th>时间</th><th>状态</th><th>耗时</th><th>题目</th><th>答案</th></tr></thead>
+        <tbody id="logBody"><tr><td colspan="5" class="muted">暂无记录</td></tr></tbody>
+      </table>
+      <div class="hint">只展示最近 20 条；完整日志见项目根目录 <code>requests.jsonl</code>。</div>
+    </div>
+  </section>
+</main>
+
+<div id="toast"></div>
+
+<script>
+(function () {
+  "use strict";
+  function el(id) { return document.getElementById(id); }
+  function toast(message, kind) {
+    var node = document.createElement("div");
+    node.className = "toast " + (kind || "");
+    node.textContent = message;
+    el("toast").appendChild(node);
+    setTimeout(function () { node.remove(); }, 4000);
+  }
+  function request(path, options) {
+    return fetch(path, options).then(function (response) {
+      return response.json().catch(function () { return {}; }).then(function (body) {
+        if (!response.ok) throw new Error((body && body.error && body.error.message) || ("HTTP " + response.status));
+        return body;
+      });
+    });
+  }
+  function setHealth(ok) {
+    var dot = el("healthDot");
+    dot.className = "dot " + (ok ? "ok" : "bad");
+  }
+  function fill(config) {
+    el("upstream").value = config.upstream || "";
+    el("apiKey").value = "";
+    el("apiKey").placeholder = config.hasApiKey ? ("已保存：" + config.apiKey + "（留空不改）") : "尚未设置 API Key";
+    el("model").value = config.model || "";
+    el("maxTokens").value = config.maxTokens;
+    el("temperature").value = config.temperature;
+    el("searchMode").value = config.search.mode;
+    el("topN").value = config.search.topN;
+    el("attempts").value = config.retry.attempts;
+    el("judgementMap").checked = !!config.judgementMap;
+    el("upstreamPill").textContent = config.upstream || "未配置上游";
+    el("configHint").textContent = "配置文件：" + (config.configPath || "config.json");
+  }
+  function loadConfig() {
+    return request("/api/config").then(function (config) { fill(config); setHealth(true); })
+      .catch(function (error) { setHealth(false); toast("读取配置失败：" + error.message, "bad"); });
+  }
+  function save() {
+    var payload = {
+      upstream: el("upstream").value.trim(),
+      model: el("model").value.trim(),
+      maxTokens: Number(el("maxTokens").value),
+      temperature: Number(el("temperature").value),
+      judgementMap: el("judgementMap").checked,
+      search: { mode: el("searchMode").value, topN: Number(el("topN").value) },
+      retry: { attempts: Number(el("attempts").value) }
+    };
+    var key = el("apiKey").value.trim();
+    if (key) payload.apiKey = key;
+    el("btnSave").disabled = true;
+    request("/api/config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
+      .then(function (config) { fill(config); toast("已保存并立即生效", "ok"); setHealth(true); })
+      .catch(function (error) { toast("保存失败：" + error.message, "bad"); })
+      .finally(function () { el("btnSave").disabled = false; });
+  }
+  function testConnection() {
+    el("btnTest").disabled = true;
+    el("btnTest").textContent = "测试中…";
+    request("/api/test", { method: "POST" }).then(function (result) {
+      if (result.ok) toast("连通正常 · " + result.status + " · " + result.ms + "ms", "ok");
+      else toast("连通失败 · " + result.status + " · " + (result.error || "").slice(0, 120), "bad");
+    }).catch(function (error) { toast("测试失败：" + error.message, "bad"); })
+      .finally(function () { el("btnTest").disabled = false; el("btnTest").textContent = "测试连通性"; });
+  }
+  function renderLogs(entries) {
+    var body = el("logBody");
+    if (!entries || !entries.length) {
+      body.innerHTML = '<tr><td colspan="5" class="muted">暂无记录</td></tr>';
+      return;
+    }
+    body.innerHTML = "";
+    entries.forEach(function (entry) {
+      var tr = document.createElement("tr");
+      var time = document.createElement("td");
+      time.className = "muted";
+      time.textContent = entry.ts ? new Date(entry.ts).toLocaleTimeString() : "-";
+      var status = document.createElement("td");
+      status.textContent = entry.status || (entry.ok ? "200" : "ERR");
+      status.className = entry.ok ? "status-ok" : "status-bad";
+      var ms = document.createElement("td");
+      ms.textContent = entry.ms ? entry.ms + "ms" : "-";
+      var q = document.createElement("td");
+      q.className = "q";
+      q.title = entry.q || "";
+      q.textContent = entry.q || (entry.event || "-");
+      var a = document.createElement("td");
+      a.className = "a";
+      a.title = entry.content || "";
+      a.textContent = entry.content || "-";
+      tr.appendChild(time); tr.appendChild(status); tr.appendChild(ms); tr.appendChild(q); tr.appendChild(a);
+      body.appendChild(tr);
+    });
+  }
+  function refresh() {
+    request("/api/stats").then(function (stats) {
+      el("sTotal").textContent = stats.total;
+      el("sFails").textContent = stats.fails;
+      el("sSearched").textContent = stats.searched;
+      el("sAvg").textContent = stats.avgMs;
+      setHealth(true);
+    }).catch(function () { setHealth(false); });
+    request("/api/logs?n=20").then(function (data) { renderLogs(data.entries); }).catch(function () {});
+  }
+  el("btnSave").addEventListener("click", save);
+  el("btnTest").addEventListener("click", testConnection);
+  el("btnRefresh").addEventListener("click", function () { loadConfig(); refresh(); });
+  loadConfig().then(refresh);
+  setInterval(refresh, 10000);
+})();
+</script>
+</body>
+</html>

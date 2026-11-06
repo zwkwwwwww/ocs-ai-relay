@@ -1,0 +1,21 @@
+{
+  "upstream": "https://api.example.com",
+  "apiKey": "sk-xxxxxxxx",
+  "model": "",
+  "maxTokens": 2048,
+  "temperature": 0,
+  "retry": {
+    "attempts": 3,
+    "backoffMs": 400
+  },
+  "search": {
+    "mode": "always",
+    "engine": "bing",
+    "topN": 3,
+    "timeoutMs": 10000,
+    "cacheTtlMs": 600000
+  },
+  "judgementMap": true,
+  "host": "127.0.0.1",
+  "port": 8787
+}
