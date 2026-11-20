@@ -1,6 +1,27 @@
 {
-  "upstream": "https://api.example.com",
-  "apiKey": "sk-xxxxxxxx",
+  "providers": {
+    "direct": {
+      "upstream": "https://api.example.com",
+      "apiKey": "sk-xxxxxxxx",
+      "enabled": true
+    },
+    "local": {
+      "upstream": "http://127.0.0.1:3425",
+      "apiKey": "",
+      "enabled": true
+    }
+  },
+  "defaultProvider": "direct",
+  "routes": [
+    {
+      "model": "auto/*",
+      "provider": "local"
+    },
+    {
+      "model": "group/*",
+      "provider": "local"
+    }
+  ],
   "model": "",
   "maxTokens": 2048,
   "temperature": 0,

@@ -10,6 +10,15 @@ const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "relay-e2e-"));
 process.env.OCS_RELAY_CONFIG = path.join(tmp, "config.json");
 
 const { createRelayServer } = require("../relay");
+const { normalize } = require("../lib/config");
+
+function readBody(req) {
+  return new Promise((resolve) => {
+    let body = "";
+    req.on("data", (chunk) => { body += chunk; });
+    req.on("end", () => resolve(body));
+  });
+}
 
 function startServer(handler) {
   return new Promise((resolve) => {
@@ -18,11 +27,24 @@ function startServer(handler) {
   });
 }
 
-function readBody(req) {
-  return new Promise((resolve) => {
-    let body = "";
-    req.on("data", (chunk) => { body += chunk; });
-    req.on("end", () => resolve(body));
+function sendJson(res, status, payload) {
+  res.writeHead(status, { "Content-Type": "application/json" });
+  res.end(JSON.stringify(payload));
+}
+
+// 假上游：GET /v1/models 返回模型目录，POST 走 answer(payload)
+function fakeUpstream(answer, status) {
+  return startServer(async (req, res) => {
+    if (req.method === "GET" && req.url.indexOf("/v1/models") >= 0) {
+      return sendJson(res, 200, { data: [{ id: "test-model" }] });
+    }
+    const raw = await readBody(req);
+    if (status && status !== 200) {
+      return sendJson(res, status, { error: { message: "upstream down" } });
+    }
+    let payload = {};
+    try { payload = JSON.parse(raw); } catch { payload = {}; }
+    return sendJson(res, 200, { choices: [{ message: answer(payload), finish_reason: "stop" }], usage: {} });
   });
 }
 
@@ -34,66 +56,81 @@ async function postJson(url, payload) {
   return { status: response.status, text, json };
 }
 
-test("end-to-end: relay answers, maps judgement and exposes config API", async (t) => {
-  // fake upstream: returns A for 对/错 questions, B otherwise, and empty content
-  // with reasoning for questions marked SALVAGE.
-  const upstream = await startServer(async (req, res) => {
-    const body = JSON.parse(await readBody(req));
-    const last = body.messages[body.messages.length - 1].content;
-    let message = { role: "assistant", content: "B" };
-    if (last.indexOf("SALVAGE") >= 0) message = { role: "assistant", content: "", reasoning_content: "答案是 A" };
-    else if (last.indexOf("对\n错") >= 0) message = { role: "assistant", content: "A" };
-    res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ choices: [{ message, finish_reason: "stop" }], usage: {} }));
+test("routes by model, fails over between providers and maps judgement", async (t) => {
+  const primary = await fakeUpstream(null, 500);
+  const backup = await fakeUpstream((payload) => {
+    const last = payload.messages[payload.messages.length - 1].content;
+    if (last.indexOf("SALVAGE") >= 0) return { role: "assistant", content: "", reasoning_content: "答案是 A" };
+    if (last.indexOf("对\n错") >= 0) return { role: "assistant", content: "A" };
+    return { role: "assistant", content: "B" };
+  });
+  const local = await fakeUpstream((payload) => {
+    const last = payload.messages[payload.messages.length - 1].content;
+    if (last.indexOf("对\n错") >= 0) return { role: "assistant", content: "B" };
+    return { role: "assistant", content: "C" };
   });
 
-  const config = {
-    upstream: "http://127.0.0.1:" + upstream.port,
-    apiKey: "test-key",
-    model: "test-model",
-    maxTokens: 512,
-    temperature: 0,
-    retry: { attempts: 2, backoffMs: 0 },
-    search: { mode: "off", engine: "bing", topN: 3, timeoutMs: 2000, cacheTtlMs: 0 },
-    judgementMap: true,
-    host: "127.0.0.1",
-    port: 0
-  };
+  const config = normalize({
+    providers: {
+      down: { upstream: "http://127.0.0.1:" + primary.port, apiKey: "k1" },
+      backup: { upstream: "http://127.0.0.1:" + backup.port, apiKey: "k2" },
+      local: { upstream: "http://127.0.0.1:" + local.port, apiKey: "magpie" }
+    },
+    defaultProvider: "down",
+    routes: [{ model: "auto/*", provider: "local" }],
+    retry: { attempts: 1, backoffMs: 0 },
+    search: { mode: "off", topN: 3, timeoutMs: 2000, cacheTtlMs: 0 },
+    judgementMap: true
+  });
+
   const logFile = path.join(tmp, "requests.jsonl");
   const relay = createRelayServer({ getConfig: () => config, requestsLog: logFile });
   await new Promise((resolve) => relay.server.listen(0, "127.0.0.1", resolve));
   const base = "http://127.0.0.1:" + relay.server.address().port;
-  t.after(() => { relay.server.close(); upstream.server.close(); });
+  t.after(() => {
+    relay.server.close();
+    primary.server.close();
+    backup.server.close();
+    local.server.close();
+  });
 
   const health = await fetch(base + "/health").then((r) => r.json());
   assert.equal(health.ok, true);
+  assert.deepEqual(health.providers.sort(), ["backup", "down", "local"]);
 
-  const single = await postJson(base + "/v1/chat/completions", {
-    model: "test-model",
+  // 默认上游 500 -> 自动切到 backup
+  const failover = await postJson(base + "/v1/chat/completions", {
+    model: "deepseek-flash",
     messages: [{ role: "user", content: "题目：首都是？\n选项：A. 上海\nB. 北京" }]
   });
-  assert.equal(single.status, 200);
-  assert.equal(single.json.choices[0].message.content, "B");
+  assert.equal(failover.status, 200);
+  assert.equal(failover.json.choices[0].message.content, "B");
 
-  const judgement = await postJson(base + "/v1/chat/completions", {
-    model: "test-model",
+  // auto/* 路由到 local，判断题字母映射为文字
+  const routed = await postJson(base + "/v1/chat/completions", {
+    model: "auto/deepseek-v4.1-flash",
     messages: [{ role: "user", content: "题目：1+1=2。\n选项：对\n错" }]
   });
-  assert.equal(judgement.json.choices[0].message.content, "对");
+  assert.equal(routed.status, 200);
+  assert.equal(routed.json.choices[0].message.content, "错");
 
+  // 空 content + reasoning 兜底
   const salvage = await postJson(base + "/v1/chat/completions", {
-    model: "test-model",
+    model: "deepseek-flash",
     messages: [{ role: "user", content: "SALVAGE 题目：某题" }]
   });
   assert.equal(salvage.json.choices[0].message.content, "A");
 
   const configResponse = await fetch(base + "/api/config").then((r) => r.json());
-  assert.equal(configResponse.hasApiKey, true);
-  assert.notEqual(configResponse.apiKey, "test-key");
+  assert.equal(configResponse.providers.backup.hasApiKey, true);
+  assert.notEqual(configResponse.providers.backup.apiKey, "k2");
 
-  const saved = await postJson(base + "/api/config", { search: { mode: "fallback", topN: 5 } });
-  assert.equal(saved.status, 200);
+  // /api/test 会自动从 /v1/models 取模型名
+  const testResult = await postJson(base + "/api/test", { provider: "local" });
+  assert.equal(testResult.json.provider, "local");
+  assert.equal(testResult.json.model, "test-model");
+  assert.equal(testResult.json.ok, true);
 
-  const logs = await fetch(base + "/api/logs?n=5").then((r) => r.json());
+  const logs = await fetch(base + "/api/logs?n=10").then((r) => r.json());
   assert.ok(Array.isArray(logs.entries));
 });

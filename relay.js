@@ -2,7 +2,7 @@
 const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
-const { loadConfig, saveConfig, publicConfig } = require("./lib/config");
+const { loadConfig, saveConfig, publicConfig, resolveProvider } = require("./lib/config");
 const { answerQuestion } = require("./lib/pipeline");
 const { searchBing, createSearchCache } = require("./lib/search");
 const { appendLog, readTail, summarize } = require("./lib/logs");
@@ -11,7 +11,7 @@ const { callModel } = require("./lib/model");
 const ROOT = __dirname;
 const UI_FILE = path.join(ROOT, "public", "index.html");
 const REQUESTS_LOG = path.join(ROOT, "requests.jsonl");
-const VERSION = "1.0.0";
+const VERSION = "1.1.0";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -40,12 +40,30 @@ function readBody(req) {
 
 function buildPatch(body) {
   const patch = {};
-  if (typeof body.upstream === "string") patch.upstream = body.upstream;
-  if (typeof body.apiKey === "string" && body.apiKey.trim()) patch.apiKey = body.apiKey.trim();
   if (typeof body.model === "string") patch.model = body.model;
   if (body.maxTokens !== undefined) patch.maxTokens = body.maxTokens;
   if (body.temperature !== undefined) patch.temperature = body.temperature;
   if (body.judgementMap !== undefined) patch.judgementMap = Boolean(body.judgementMap);
+  if (typeof body.defaultProvider === "string") patch.defaultProvider = body.defaultProvider;
+
+  if (body.providers && typeof body.providers === "object") {
+    patch.providers = {};
+    for (const name of Object.keys(body.providers)) {
+      const incoming = body.providers[name] || {};
+      const entry = {};
+      if (typeof incoming.upstream === "string") entry.upstream = incoming.upstream;
+      if (typeof incoming.apiKey === "string" && incoming.apiKey.trim()) entry.apiKey = incoming.apiKey.trim();
+      if (incoming.enabled !== undefined) entry.enabled = Boolean(incoming.enabled);
+      patch.providers[name] = entry;
+    }
+  }
+
+  if (body.routes !== undefined) {
+    patch.routes = Array.isArray(body.routes)
+      ? body.routes.filter((route) => route && route.model && route.provider).map((route) => ({ model: String(route.model), provider: String(route.provider) }))
+      : [];
+  }
+
   if (body.search && typeof body.search === "object") {
     patch.search = {};
     if (body.search.mode) patch.search.mode = body.search.mode;
@@ -76,7 +94,15 @@ function createRelayServer(options) {
       const pathname = url.pathname;
 
       if (pathname === "/health") {
-        return sendJson(res, 200, { ok: true, version: VERSION, upstream: getConfig().upstream, uptimeMs: Date.now() - startedAt, time: new Date().toISOString() });
+        const config = getConfig();
+        return sendJson(res, 200, {
+          ok: true,
+          version: VERSION,
+          providers: Object.keys(config.providers || {}),
+          defaultProvider: config.defaultProvider,
+          uptimeMs: Date.now() - startedAt,
+          time: new Date().toISOString()
+        });
       }
 
       if (pathname === "/" || pathname === "/ui") {
@@ -99,9 +125,30 @@ function createRelayServer(options) {
 
       if (pathname === "/api/test" && req.method === "POST") {
         const config = getConfig();
+        const body = safeParse(await readBody(req)) || {};
+        const name = body.provider && config.providers[body.provider]
+          ? body.provider
+          : resolveProvider(config, body.model || config.model || "");
+        const provider = name ? config.providers[name] : null;
+        if (!provider) return sendJson(res, 400, { error: { message: "no provider available" } });
         const started = Date.now();
-        const result = await callModel(config, {
-          model: config.model || "gpt-3.5-turbo",
+        let testModel = String(body.model || config.model || "").trim();
+        if (!testModel) {
+          // 未指定模型时，向上游 /v1/models 取第一个可用模型，避免用 gpt-3.5-turbo 这类未必存在的名字去探活
+          try {
+            const headers = provider.apiKey ? { Authorization: "Bearer " + provider.apiKey } : {};
+            const listing = await fetchImpl(provider.upstream + "/v1/models", { headers, signal: AbortSignal.timeout(10000) });
+            const parsed = safeParse(await listing.text());
+            const list = parsed && Array.isArray(parsed.data) ? parsed.data.filter((item) => item && item.id) : [];
+            // 优先挑对话模型：图像/向量/语音模型也能返回 200，但说明不了聊天链路是否正常
+            const chat = list.find((item) => !/image|embed|tts|whisper|audio|video|rerank|moderation|ocr|seedance/i.test(String(item.id)));
+            const first = chat || list[0] || null;
+            if (first) testModel = String(first.id);
+          } catch { /* 探测失败就退回默认名字 */ }
+        }
+        if (!testModel) testModel = "gpt-3.5-turbo";
+        const result = await callModel(provider, {
+          model: testModel,
           messages: [{ role: "user", content: "ping" }],
           max_tokens: 8,
           temperature: 0
@@ -110,6 +157,9 @@ function createRelayServer(options) {
         try { sample = String(result.obj.choices[0].message.content || "").slice(0, 80); } catch { sample = ""; }
         return sendJson(res, 200, {
           ok: result.status === 200,
+          provider: name,
+          upstream: provider.upstream,
+          model: testModel,
           status: result.status,
           ms: Date.now() - started,
           sample,
@@ -121,10 +171,12 @@ function createRelayServer(options) {
         const entries = readTail(requestsLog, 400);
         const summary = summarize(entries);
         const lastFails = entries.filter((entry) => !entry.ok).slice(-5).reverse();
+        const config = getConfig();
         return sendJson(res, 200, Object.assign({}, summary, {
           uptimeMs: Date.now() - startedAt,
-          upstream: getConfig().upstream,
-          searchMode: getConfig().search.mode,
+          providers: Object.keys(config.providers || {}),
+          defaultProvider: config.defaultProvider,
+          searchMode: config.search.mode,
           lastFails
         }));
       }
@@ -149,7 +201,6 @@ function createRelayServer(options) {
         const bodyText = await readBody(req);
         const payload = safeParse(bodyText);
         if (!payload) return sendJson(res, 400, { error: { message: "invalid json body" } });
-        appendLog(requestsLog, { ts: new Date().toISOString(), event: "request" });
         const result = await answerQuestion({
           payload,
           authHeader: req.headers.authorization,
@@ -181,6 +232,7 @@ if (require.main === module) {
     const base = "http://" + config.host + ":" + config.port;
     console.log("ocs-ai-relay v" + VERSION + " listening on " + base);
     console.log("control panel: " + base + "/");
+    console.log("providers: " + Object.keys(config.providers).join(", ") + " (default: " + config.defaultProvider + ")");
     if (config.host !== "127.0.0.1" && config.host !== "localhost") {
       console.warn("warning: host is " + config.host + " - the relay is exposed beyond localhost");
     }

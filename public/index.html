@@ -14,7 +14,6 @@
     --muted: #8b93a3;
     --accent: #4f8cff;
     --ok: #35c98b;
-    --warn: #f2b544;
     --bad: #ef5b5b;
     --radius: 12px;
     font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
@@ -22,34 +21,42 @@
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text); font-size: 14px; }
   header { display: flex; align-items: center; gap: 12px; padding: 18px 24px; border-bottom: 1px solid var(--line); }
-  header h1 { font-size: 17px; margin: 0; font-weight: 600; letter-spacing: .2px; }
+  header h1 { font-size: 17px; margin: 0; font-weight: 600; }
   header .ver { color: var(--muted); font-size: 12px; }
   .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: #222732; color: var(--muted); font-size: 12px; }
   .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
   .dot.ok { background: var(--ok); box-shadow: 0 0 8px rgba(53,201,139,.7); }
   .dot.bad { background: var(--bad); box-shadow: 0 0 8px rgba(239,91,91,.7); }
-  main { max-width: 1180px; margin: 0 auto; padding: 22px 24px 60px; display: grid; grid-template-columns: 420px 1fr; gap: 18px; }
-  @media (max-width: 960px) { main { grid-template-columns: 1fr; } }
+  main { max-width: 1220px; margin: 0 auto; padding: 22px 24px 60px; display: grid; grid-template-columns: 470px 1fr; gap: 18px; }
+  @media (max-width: 1000px) { main { grid-template-columns: 1fr; } }
   .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; margin-bottom: 16px; }
-  .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); margin: 0 0 14px; font-weight: 600; }
+  .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); margin: 0 0 14px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
   label { display: block; font-size: 12px; color: var(--muted); margin: 12px 0 6px; }
   label:first-child { margin-top: 0; }
   input[type=text], input[type=password], input[type=number], select {
-    width: 100%; padding: 9px 11px; background: var(--panel-2); color: var(--text);
+    width: 100%; padding: 8px 10px; background: var(--panel-2); color: var(--text);
     border: 1px solid var(--line); border-radius: 8px; outline: none; font-size: 13px;
   }
   input:focus, select:focus { border-color: var(--accent); }
   .row { display: flex; gap: 10px; }
-  .row > * { flex: 1; }
-  .inline { display: flex; align-items: center; gap: 8px; margin-top: 14px; color: var(--muted); font-size: 13px; }
-  .inline input { accent-color: var(--accent); }
-  .actions { display: flex; gap: 10px; margin-top: 18px; }
-  button { cursor: pointer; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); padding: 9px 16px; border-radius: 8px; font-size: 13px; }
+  .row > * { flex: 1; min-width: 0; }
+  .inline { display: flex; align-items: center; gap: 8px; margin-top: 12px; color: var(--muted); font-size: 13px; }
+  input[type=checkbox] { accent-color: var(--accent); }
+  .actions { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+  button { cursor: pointer; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); padding: 8px 14px; border-radius: 8px; font-size: 13px; }
   button:hover { border-color: #3a4252; }
   button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
   button.primary:hover { filter: brightness(1.08); }
+  button.mini { padding: 4px 9px; font-size: 12px; }
   button:disabled { opacity: .5; cursor: not-allowed; }
   .hint { color: var(--muted); font-size: 12px; margin-top: 8px; line-height: 1.6; }
+  .provider { border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin-bottom: 10px; background: var(--panel-2); }
+  .provider .head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .provider .name { font-weight: 600; font-size: 13px; }
+  .provider .badge { font-size: 11px; color: var(--muted); border: 1px solid var(--line); padding: 1px 7px; border-radius: 999px; }
+  .provider .grow { flex: 1; }
+  .routes th, .routes td { padding: 6px 4px; }
+  .routes input, .routes select { padding: 6px 8px; font-size: 12px; }
   .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
   .stat { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
   .stat .num { font-size: 22px; font-weight: 700; }
@@ -58,16 +65,15 @@
   table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
   th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
   th { color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
-  td.q { max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  td.a { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  td.q { max-width: 330px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  td.a { max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .status-ok { color: var(--ok); }
   .status-bad { color: var(--bad); }
   .muted { color: var(--muted); }
   #toast { position: fixed; right: 20px; bottom: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 20; }
-  .toast { background: #222834; border: 1px solid var(--line); border-left: 3px solid var(--accent); padding: 10px 14px; border-radius: 8px; font-size: 13px; box-shadow: 0 10px 30px rgba(0,0,0,.4); animation: in .18s ease; }
+  .toast { background: #222834; border: 1px solid var(--line); border-left: 3px solid var(--accent); padding: 10px 14px; border-radius: 8px; font-size: 13px; box-shadow: 0 10px 30px rgba(0,0,0,.4); }
   .toast.ok { border-left-color: var(--ok); }
   .toast.bad { border-left-color: var(--bad); }
-  @keyframes in { from { transform: translateY(6px); opacity: 0; } to { transform: none; opacity: 1; } }
   code { background: #10131a; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
 </style>
 </head>
@@ -75,35 +81,27 @@
 <header>
   <span class="dot" id="healthDot"></span>
   <h1>ocs-ai-relay</h1>
-  <span class="ver">v1.0.0 · 本地中转控制台</span>
-  <span class="pill" id="upstreamPill">读取配置中…</span>
+  <span class="ver">v1.1.0 · 本地中转控制台</span>
+  <span class="pill" id="providerPill">读取配置中…</span>
 </header>
 
 <main>
   <section>
     <div class="card">
-      <h2>模型服务</h2>
-      <label for="upstream">上游地址（OpenAI 兼容根地址）</label>
-      <input id="upstream" type="text" placeholder="https://api.example.com" />
-      <label for="apiKey">API Key</label>
-      <input id="apiKey" type="password" placeholder="留空则保留当前 Key" />
-      <label for="model">模型覆盖（可留空）</label>
-      <input id="model" type="text" placeholder="留空则使用请求体里的 model" />
-      <div class="row">
-        <div>
-          <label for="maxTokens">最大输出 tokens</label>
-          <input id="maxTokens" type="number" min="64" max="32768" step="64" />
-        </div>
-        <div>
-          <label for="temperature">温度</label>
-          <input id="temperature" type="number" min="0" max="2" step="0.1" />
-        </div>
-      </div>
-      <div class="actions">
-        <button class="primary" id="btnSave">保存并生效</button>
-        <button id="btnTest">测试连通性</button>
-      </div>
-      <div class="hint">配置保存在项目根目录 <code>config.json</code>，保存即生效，无需重启。</div>
+      <h2>上游服务 <button class="mini" id="btnAddProvider">+ 添加上游</button></h2>
+      <div id="providers"></div>
+      <label for="defaultProvider">默认上游（未命中路由时使用）</label>
+      <select id="defaultProvider"></select>
+      <div class="hint">每个上游是独立的 OpenAI 兼容地址；Key 留空表示保持不变。</div>
+    </div>
+
+    <div class="card">
+      <h2>模型路由 <button class="mini" id="btnAddRoute">+ 添加规则</button></h2>
+      <table class="routes">
+        <thead><tr><th style="width:55%">模型匹配</th><th>上游</th><th style="width:40px"></th></tr></thead>
+        <tbody id="routes"></tbody>
+      </table>
+      <div class="hint">支持精确名和通配符，例如 <code>auto/*</code>、<code>group/*</code>、<code>deepseek-flash</code>。</div>
     </div>
 
     <div class="card">
@@ -120,8 +118,12 @@
           <input id="topN" type="number" min="1" max="8" step="1" />
         </div>
         <div>
-          <label for="attempts">失败重试次数</label>
+          <label for="attempts">单上游重试次数</label>
           <input id="attempts" type="number" min="1" max="5" step="1" />
+        </div>
+        <div>
+          <label for="maxTokens">最大输出</label>
+          <input id="maxTokens" type="number" min="64" max="32768" step="64" />
         </div>
       </div>
       <div class="inline">
@@ -129,8 +131,10 @@
         <label for="judgementMap" style="margin:0">判断题：把字母答案映射为「对 / 错」</label>
       </div>
       <div class="actions">
-        <button id="btnRefresh">刷新状态</button>
+        <button class="primary" id="btnSave">保存并生效</button>
+        <button id="btnRefresh">重新加载</button>
       </div>
+      <div class="hint" id="configHint"></div>
     </div>
   </section>
 
@@ -143,14 +147,14 @@
         <div class="stat"><div class="num" id="sSearched">-</div><div class="lbl">触发搜索</div></div>
         <div class="stat"><div class="num" id="sAvg">-</div><div class="lbl">平均耗时 ms</div></div>
       </div>
-      <div class="hint" id="configHint"></div>
+      <div class="hint" id="statsHint"></div>
     </div>
 
     <div class="card">
       <h2>最近请求</h2>
       <table>
-        <thead><tr><th>时间</th><th>状态</th><th>耗时</th><th>题目</th><th>答案</th></tr></thead>
-        <tbody id="logBody"><tr><td colspan="5" class="muted">暂无记录</td></tr></tbody>
+        <thead><tr><th>时间</th><th>上游</th><th>状态</th><th>耗时</th><th>题目</th><th>答案</th></tr></thead>
+        <tbody id="logBody"><tr><td colspan="6" class="muted">暂无记录</td></tr></tbody>
       </table>
       <div class="hint">只展示最近 20 条；完整日志见项目根目录 <code>requests.jsonl</code>。</div>
     </div>
@@ -162,6 +166,8 @@
 <script>
 (function () {
   "use strict";
+  var state = { providers: {}, routes: [], defaultProvider: "" };
+
   function el(id) { return document.getElementById(id); }
   function toast(message, kind) {
     var node = document.createElement("div");
@@ -179,96 +185,261 @@
     });
   }
   function setHealth(ok) {
-    var dot = el("healthDot");
-    dot.className = "dot " + (ok ? "ok" : "bad");
+    el("healthDot").className = "dot " + (ok ? "ok" : "bad");
   }
+
+  function providerNames() { return Object.keys(state.providers); }
+
+  function renderProviders() {
+    var host = el("providers");
+    host.innerHTML = "";
+    providerNames().forEach(function (name) {
+      var provider = state.providers[name];
+      var box = document.createElement("div");
+      box.className = "provider";
+
+      var head = document.createElement("div");
+      head.className = "head";
+      var title = document.createElement("span");
+      title.className = "name";
+      title.textContent = name;
+      var badge = document.createElement("span");
+      badge.className = "badge";
+      badge.textContent = provider.enabled === false ? "已停用" : "启用中";
+      var grow = document.createElement("span");
+      grow.className = "grow";
+      var testBtn = document.createElement("button");
+      testBtn.className = "mini";
+      testBtn.textContent = "测试";
+      testBtn.addEventListener("click", function () { testProvider(name, testBtn); });
+      var delBtn = document.createElement("button");
+      delBtn.className = "mini";
+      delBtn.textContent = "删除";
+      delBtn.addEventListener("click", function () { deleteProvider(name); });
+      head.appendChild(title); head.appendChild(badge); head.appendChild(grow);
+      head.appendChild(testBtn); head.appendChild(delBtn);
+      box.appendChild(head);
+
+      var upLabel = document.createElement("label");
+      upLabel.textContent = "上游地址";
+      var upInput = document.createElement("input");
+      upInput.type = "text";
+      upInput.value = provider.upstream || "";
+      upInput.placeholder = "https://api.example.com";
+      upInput.addEventListener("input", function () { provider.upstream = upInput.value; });
+      box.appendChild(upLabel); box.appendChild(upInput);
+
+      var keyLabel = document.createElement("label");
+      keyLabel.textContent = "API Key";
+      var keyInput = document.createElement("input");
+      keyInput.type = "password";
+      keyInput.value = "";
+      keyInput.placeholder = provider.hasApiKey ? ("已保存：" + provider.apiKey + "（留空不改）") : "未设置";
+      keyInput.addEventListener("input", function () { provider.newApiKey = keyInput.value; });
+      box.appendChild(keyLabel); box.appendChild(keyInput);
+
+      var inline = document.createElement("div");
+      inline.className = "inline";
+      var enabled = document.createElement("input");
+      enabled.type = "checkbox";
+      enabled.checked = provider.enabled !== false;
+      enabled.addEventListener("change", function () { provider.enabled = enabled.checked; badge.textContent = enabled.checked ? "启用中" : "已停用"; });
+      var enabledLabel = document.createElement("label");
+      enabledLabel.style.margin = "0";
+      enabledLabel.textContent = "启用";
+      inline.appendChild(enabled); inline.appendChild(enabledLabel);
+      box.appendChild(inline);
+
+      host.appendChild(box);
+    });
+
+    var select = el("defaultProvider");
+    select.innerHTML = "";
+    providerNames().forEach(function (name) {
+      var option = document.createElement("option");
+      option.value = name;
+      option.textContent = name;
+      if (name === state.defaultProvider) option.selected = true;
+      select.appendChild(option);
+    });
+    el("providerPill").textContent = providerNames().length + " 个上游 · 默认 " + (state.defaultProvider || "-");
+  }
+
+  function renderRoutes() {
+    var body = el("routes");
+    body.innerHTML = "";
+    state.routes.forEach(function (route, index) {
+      var tr = document.createElement("tr");
+      var tdModel = document.createElement("td");
+      var modelInput = document.createElement("input");
+      modelInput.type = "text";
+      modelInput.value = route.model || "";
+      modelInput.placeholder = "auto/*";
+      modelInput.addEventListener("input", function () { route.model = modelInput.value; });
+      tdModel.appendChild(modelInput);
+
+      var tdProvider = document.createElement("td");
+      var select = document.createElement("select");
+      providerNames().forEach(function (name) {
+        var option = document.createElement("option");
+        option.value = name;
+        option.textContent = name;
+        if (name === route.provider) option.selected = true;
+        select.appendChild(option);
+      });
+      select.addEventListener("change", function () { route.provider = select.value; });
+      tdProvider.appendChild(select);
+
+      var tdDel = document.createElement("td");
+      var del = document.createElement("button");
+      del.className = "mini";
+      del.textContent = "×";
+      del.addEventListener("click", function () { state.routes.splice(index, 1); renderRoutes(); });
+      tdDel.appendChild(del);
+
+      tr.appendChild(tdModel); tr.appendChild(tdProvider); tr.appendChild(tdDel);
+      body.appendChild(tr);
+    });
+    if (!state.routes.length) {
+      var tr = document.createElement("tr");
+      var td = document.createElement("td");
+      td.colSpan = 3;
+      td.className = "muted";
+      td.textContent = "暂无路由规则，全部走默认上游";
+      tr.appendChild(td);
+      body.appendChild(tr);
+    }
+  }
+
+  function addProvider() {
+    var name = window.prompt("新上游名称（例如 magpie）", "");
+    if (!name) return;
+    name = name.trim();
+    if (!name) return;
+    if (state.providers[name]) { toast("已存在同名上游", "bad"); return; }
+    state.providers[name] = { upstream: "", apiKey: "", hasApiKey: false, enabled: true };
+    renderProviders(); renderRoutes();
+  }
+
+  function deleteProvider(name) {
+    if (!window.confirm("删除上游 " + name + "？")) return;
+    delete state.providers[name];
+    state.routes = state.routes.filter(function (route) { return route.provider !== name; });
+    if (state.defaultProvider === name) state.defaultProvider = providerNames()[0] || "";
+    renderProviders(); renderRoutes();
+  }
+
+  function testProvider(name, button) {
+    button.disabled = true;
+    button.textContent = "测试中";
+    request("/api/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider: name })
+    }).then(function (result) {
+      if (result.ok) toast(name + " 连通正常 · " + result.status + " · " + result.ms + "ms", "ok");
+      else toast(name + " 失败 · " + result.status + " · " + String(result.error || "").slice(0, 100), "bad");
+    }).catch(function (error) { toast(name + " 测试失败：" + error.message, "bad"); })
+      .finally(function () { button.disabled = false; button.textContent = "测试"; });
+  }
+
   function fill(config) {
-    el("upstream").value = config.upstream || "";
-    el("apiKey").value = "";
-    el("apiKey").placeholder = config.hasApiKey ? ("已保存：" + config.apiKey + "（留空不改）") : "尚未设置 API Key";
-    el("model").value = config.model || "";
-    el("maxTokens").value = config.maxTokens;
-    el("temperature").value = config.temperature;
+    state.providers = {};
+    Object.keys(config.providers || {}).forEach(function (name) {
+      var provider = config.providers[name] || {};
+      state.providers[name] = {
+        upstream: provider.upstream || "",
+        apiKey: provider.apiKey || "",
+        hasApiKey: !!provider.hasApiKey,
+        enabled: provider.enabled !== false,
+        newApiKey: ""
+      };
+    });
+    state.defaultProvider = config.defaultProvider || providerNames()[0] || "";
+    state.routes = (config.routes || []).map(function (route) { return { model: route.model, provider: route.provider }; })();
     el("searchMode").value = config.search.mode;
     el("topN").value = config.search.topN;
     el("attempts").value = config.retry.attempts;
+    el("maxTokens").value = config.maxTokens;
     el("judgementMap").checked = !!config.judgementMap;
-    el("upstreamPill").textContent = config.upstream || "未配置上游";
     el("configHint").textContent = "配置文件：" + (config.configPath || "config.json");
+    renderProviders(); renderRoutes();
   }
+
   function loadConfig() {
     return request("/api/config").then(function (config) { fill(config); setHealth(true); })
       .catch(function (error) { setHealth(false); toast("读取配置失败：" + error.message, "bad"); });
   }
+
   function save() {
+    var providers = {};
+    Object.keys(state.providers).forEach(function (name) {
+      var provider = state.providers[name];
+      var entry = { upstream: provider.upstream, enabled: provider.enabled !== false };
+      if (provider.newApiKey) entry.apiKey = provider.newApiKey;
+      providers[name] = entry;
+    });
     var payload = {
-      upstream: el("upstream").value.trim(),
-      model: el("model").value.trim(),
-      maxTokens: Number(el("maxTokens").value),
-      temperature: Number(el("temperature").value),
-      judgementMap: el("judgementMap").checked,
+      providers: providers,
+      defaultProvider: el("defaultProvider").value,
+      routes: state.routes.filter(function (route) { return route.model && route.provider; }),
       search: { mode: el("searchMode").value, topN: Number(el("topN").value) },
-      retry: { attempts: Number(el("attempts").value) }
+      retry: { attempts: Number(el("attempts").value) },
+      maxTokens: Number(el("maxTokens").value),
+      judgementMap: el("judgementMap").checked
     };
-    var key = el("apiKey").value.trim();
-    if (key) payload.apiKey = key;
     el("btnSave").disabled = true;
     request("/api/config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
       .then(function (config) { fill(config); toast("已保存并立即生效", "ok"); setHealth(true); })
       .catch(function (error) { toast("保存失败：" + error.message, "bad"); })
       .finally(function () { el("btnSave").disabled = false; });
   }
-  function testConnection() {
-    el("btnTest").disabled = true;
-    el("btnTest").textContent = "测试中…";
-    request("/api/test", { method: "POST" }).then(function (result) {
-      if (result.ok) toast("连通正常 · " + result.status + " · " + result.ms + "ms", "ok");
-      else toast("连通失败 · " + result.status + " · " + (result.error || "").slice(0, 120), "bad");
-    }).catch(function (error) { toast("测试失败：" + error.message, "bad"); })
-      .finally(function () { el("btnTest").disabled = false; el("btnTest").textContent = "测试连通性"; });
-  }
+
   function renderLogs(entries) {
     var body = el("logBody");
     if (!entries || !entries.length) {
-      body.innerHTML = '<tr><td colspan="5" class="muted">暂无记录</td></tr>';
+      body.innerHTML = '<tr><td colspan="6" class="muted">暂无记录</td></tr>';
       return;
     }
     body.innerHTML = "";
     entries.forEach(function (entry) {
       var tr = document.createElement("tr");
-      var time = document.createElement("td");
-      time.className = "muted";
-      time.textContent = entry.ts ? new Date(entry.ts).toLocaleTimeString() : "-";
-      var status = document.createElement("td");
-      status.textContent = entry.status || (entry.ok ? "200" : "ERR");
-      status.className = entry.ok ? "status-ok" : "status-bad";
-      var ms = document.createElement("td");
-      ms.textContent = entry.ms ? entry.ms + "ms" : "-";
-      var q = document.createElement("td");
-      q.className = "q";
-      q.title = entry.q || "";
-      q.textContent = entry.q || (entry.event || "-");
-      var a = document.createElement("td");
-      a.className = "a";
-      a.title = entry.content || "";
-      a.textContent = entry.content || "-";
-      tr.appendChild(time); tr.appendChild(status); tr.appendChild(ms); tr.appendChild(q); tr.appendChild(a);
+      function cell(text, className, title) {
+        var td = document.createElement("td");
+        td.textContent = text;
+        if (className) td.className = className;
+        if (title) td.title = title;
+        return td;
+      }
+      tr.appendChild(cell(entry.ts ? new Date(entry.ts).toLocaleTimeString() : "-", "muted"));
+      tr.appendChild(cell(entry.provider || "-", "muted"));
+      tr.appendChild(cell(entry.status || (entry.ok ? "200" : "ERR"), entry.ok ? "status-ok" : "status-bad"));
+      tr.appendChild(cell(entry.ms ? entry.ms + "ms" : "-"));
+      tr.appendChild(cell(entry.q || (entry.event || "-"), "q", entry.q || ""));
+      tr.appendChild(cell(entry.content || "-", "a", entry.content || ""));
       body.appendChild(tr);
     });
   }
+
   function refresh() {
     request("/api/stats").then(function (stats) {
       el("sTotal").textContent = stats.total;
       el("sFails").textContent = stats.fails;
       el("sSearched").textContent = stats.searched;
       el("sAvg").textContent = stats.avgMs;
+      el("statsHint").textContent = "上游：" + (stats.providers || []).join(" / ") + " · 默认 " + stats.defaultProvider + " · 搜索 " + stats.searchMode;
       setHealth(true);
     }).catch(function () { setHealth(false); });
     request("/api/logs?n=20").then(function (data) { renderLogs(data.entries); }).catch(function () {});
   }
+
   el("btnSave").addEventListener("click", save);
-  el("btnTest").addEventListener("click", testConnection);
   el("btnRefresh").addEventListener("click", function () { loadConfig(); refresh(); });
+  el("btnAddProvider").addEventListener("click", addProvider);
+  el("btnAddRoute").addEventListener("click", function () {
+    state.routes.push({ model: "", provider: state.defaultProvider || providerNames()[0] || "" });
+    renderRoutes();
+  });
   loadConfig().then(refresh);
   setInterval(refresh, 10000);
 })();

@@ -2,17 +2,18 @@
 
 给 [OCS 网课助手](https://docs.ocsjs.com/) 之类只认「题库配置」的用户脚本，接上任意 **OpenAI 兼容**大模型接口的本地中转。
 
-> 一句话：脚本 -> `http://127.0.0.1:8787/v1/chat/completions` -> 你的模型服务。
+> 一句话：脚本 -> http://127.0.0.1:8787/v1/chat/completions -> 你的一个或多个模型服务。
 
 ## 为什么需要它
 
 | 痛点 | 这个中转怎么解决 |
 | --- | --- |
-| 用户脚本有 `@connect` 白名单，外部 API 域名被拦 | 中转跑在 `127.0.0.1`，天然在白名单里 |
-| 推理模型偶尔吃掉全部 token，返回空内容 | 自动翻倍 `max_tokens` 重试，必要时从 reasoning 里兜底提取 |
+| 用户脚本有 @connect 白名单，外部 API 域名被拦 | 中转跑在 127.0.0.1，天然在白名单里 |
+| 推理模型偶尔吃掉全部 token，返回空内容 | 自动翻倍 max_tokens 重试，必要时从 reasoning 里兜底提取 |
 | 判断题选项是「对/错」，模型却回字母 A/B | 自动识别判断题，把字母映射回选项文字 |
 | 模型答不出需要查资料的新题 | Bing 搜索取摘要，作为参考资料二次提问 |
-| 想改 key/模型/搜索策略要翻配置文件 | 自带网页控制台，填 URL 和 Key 就能用 |
+| 手上有多个服务商 / 本地网关，想按模型分流 | 多上游 + 模型路由（精确名与 auto/* 通配）+ 失败自动切换 |
+| 想改 key / 模型 / 搜索策略要翻配置文件 | 自带网页控制台，填地址和 Key 就能用 |
 
 ## 快速开始
 
@@ -22,13 +23,13 @@ cd ocs-ai-relay
 node relay.js
 ```
 
-打开 <http://127.0.0.1:8787/>，在控制台里填：
+打开 http://127.0.0.1:8787/ ，在控制台里：
 
-- **上游地址**：你的 OpenAI 兼容接口根地址，例如 `https://api.example.com`（不要带 `/v1/chat/completions`）
-- **API Key**：上游的密钥
-- **搜索模式**：`always`（每题都搜）/ `fallback`（答不出来才搜）/ `off`
+1. 「上游服务」里填地址与 Key（可加多个上游，例如一个直连服务商 + 一个本地网关）
+2. 「模型路由」里按模型名分流，例如 auto/* -> 本地网关
+3. 「搜索与策略」里选搜索模式：always / fallback / off
 
-点「保存」，再点「测试连通性」确认能通。
+点「保存并生效」，再点某个上游的「测试」确认能通。
 
 ## 接到 OCS（或任意用户脚本）
 
@@ -57,40 +58,61 @@ node relay.js
 ]
 ```
 
-> `handler` 必须返回 `[问题, 答案, 附加数据]` —— 答案在第 2 位，这是 OCS 题库解析器的约定。
+> handler 必须返回 [问题, 答案, 附加数据] —— 答案在第 2 位，这是 OCS 题库解析器的约定。
 >
-> Key 可以只填在中转的控制台里，脚本的 `headers` 里不必带 `Authorization`。
+> Key 只需要填在中转的控制台里，脚本的 headers 里不必带 Authorization。
+
+## 多上游与路由
+
+上游是一张表，routes 决定某个 model 走哪个上游：
+
+```json
+{
+  "providers": {
+    "direct": { "upstream": "https://api.example.com", "apiKey": "sk-xxx", "enabled": true },
+    "local":  { "upstream": "http://127.0.0.1:3425",  "apiKey": "local", "enabled": true }
+  },
+  "defaultProvider": "local",
+  "routes": [
+    { "model": "auto/*",  "provider": "local" },
+    { "model": "group/*", "provider": "local" },
+    { "model": "deepseek-flash", "provider": "direct" }
+  ]
+}
+```
+
+匹配顺序：精确名 -> 通配符 -> 默认上游。选中的上游失败（网络错误 / 5xx）后，会按顺序自动切到其它启用的上游再试，日志里能看到 provider 字段。
 
 ## 控制台
 
 | 能力 | 说明 |
 | --- | --- |
-| 上游地址 / Key / 模型覆盖 | 保存到 `config.json`，立即生效，无需重启 |
-| 搜索模式 / 条数 | `always`、`fallback`、`off` |
+| 上游增删改 | 每个上游独立的地址、Key、启用状态，可单独「测试」 |
+| 模型路由 | 精确名或 auto/* 形式的通配规则 |
+| 搜索模式 / 条数 | always、fallback、off |
 | 判断题映射 | 关闭后字母答案原样透传 |
-| 测试连通性 | 服务端真实发一次请求，返回状态码与耗时 |
 | 运行统计 | 总请求、失败数、搜索命中、平均耗时、最近失败 |
-| 最近请求 | 时间、状态、耗时、题目、答案 |
+| 最近请求 | 时间、上游、状态、耗时、题目、答案 |
 
-配置文件位置：项目根目录 `config.json`（已在 `.gitignore` 中，不会提交）。
+配置保存在项目根目录 config.json（已在 .gitignore 中，不会提交）。保存即生效，无需重启。
 
 ## HTTP 接口
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| POST | `/v1/chat/completions` | OpenAI 兼容入口（兼容 `stream: false`） |
-| GET | `/health` | 健康检查 |
-| GET | `/api/config` | 读取配置（Key 打码） |
-| POST | `/api/config` | 更新配置（Key 传空则保留原值） |
-| POST | `/api/test` | 用当前配置测试上游 |
-| GET | `/api/stats` | 汇总统计 |
-| GET | `/api/logs?n=50` | 最近请求明细 |
-| GET | `/search?q=...` | 手动试搜索 |
+| POST | /v1/chat/completions | OpenAI 兼容入口 |
+| GET | /health | 健康检查（含上游列表） |
+| GET | /api/config | 读取配置（Key 打码） |
+| POST | /api/config | 更新配置（Key 传空则保留原值） |
+| POST | /api/test | 测试指定上游，可传 {"provider":"local"} |
+| GET | /api/stats | 汇总统计 |
+| GET | /api/logs?n=50 | 最近请求明细 |
+| GET | /search?q=... | 手动试搜索 |
 
 ## 安全
 
-- 默认只监听 `127.0.0.1`，不要把它暴露到公网。
-- Key 以明文存于本机 `config.json`，请勿提交、勿分享。
+- 默认只监听 127.0.0.1，不要把它暴露到公网。
+- Key 以明文存于本机 config.json，请勿提交、勿分享。
 - 搜索摘要来自第三方搜索引擎，属于不可信内容，仅作参考资料。
 
 ## 测试
@@ -99,7 +121,7 @@ node relay.js
 npm test
 ```
 
-测试会启动一个假的模型上游，覆盖：配置读写、判断题映射、HTML 解析、重试、端到端请求。
+测试会启动假的模型上游，覆盖：配置读写与旧格式迁移、模型路由、上游故障转移、判断题映射、reasoning 兜底、HTML 解析与搜索缓存。
 
 ## License
 
