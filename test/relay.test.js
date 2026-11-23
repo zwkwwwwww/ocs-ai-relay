@@ -84,7 +84,8 @@ test("routes by model, fails over between providers and maps judgement", async (
   });
 
   const logFile = path.join(tmp, "requests.jsonl");
-  const relay = createRelayServer({ getConfig: () => config, requestsLog: logFile });
+  const historyFile = path.join(tmp, "history.jsonl");
+  const relay = createRelayServer({ getConfig: () => config, requestsLog: logFile, historyLog: historyFile });
   await new Promise((resolve) => relay.server.listen(0, "127.0.0.1", resolve));
   const base = "http://127.0.0.1:" + relay.server.address().port;
   t.after(() => {
@@ -133,4 +134,18 @@ test("routes by model, fails over between providers and maps judgement", async (
 
   const logs = await fetch(base + "/api/logs?n=10").then((r) => r.json());
   assert.ok(Array.isArray(logs.entries));
+
+  // 每答一题都要落一条结构化记录
+  const historyResponse = await fetch(base + "/api/history?n=10").then((r) => r.json());
+  assert.equal(historyResponse.entries.length >= 3, true);
+  const latest = historyResponse.entries[0];
+  assert.equal(typeof latest.question, "string");
+  assert.equal(typeof latest.answer, "string");
+  assert.ok(["judgement", "choice", "completion"].indexOf(latest.type) >= 0);
+  assert.ok(latest.provider);
+
+  // CSV 导出可用
+  const csv = await fetch(base + "/api/history.csv").then((r) => r.text());
+  assert.ok(csv.indexOf("题目") >= 0);
+  assert.ok(csv.indexOf("答案") >= 0);
 });

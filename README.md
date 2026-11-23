@@ -92,9 +92,22 @@ node relay.js
 | 搜索模式 / 条数 | always、fallback、off |
 | 判断题映射 | 关闭后字母答案原样透传 |
 | 运行统计 | 总请求、失败数、搜索命中、平均耗时、最近失败 |
-| 最近请求 | 时间、上游、状态、耗时、题目、答案 |
+| 最近请求 | 时间、上游、状态、耗时、题目、答案（排障用） |
+| 答题记录 | 每答一题的题目、选项、答案、上游、耗时，可一键导出 CSV |
 
 配置保存在项目根目录 config.json（已在 .gitignore 中，不会提交）。保存即生效，无需重启。
+
+## 答题记录
+
+每答完一道题，中转会往 history.jsonl 追加一条结构化记录：
+
+```json
+{"ts":"2026-11-23T09:40:00.000Z","type":"judgement","question":"题目：光速比声速快。（）\n选项：对\n错","options":["对","错"],"answer":"对","provider":"magpie","model":"auto/*","searched":true,"judgementMapped":true,"ms":3900}
+```
+
+- type 由选项自动推断：judgement / choice / completion
+- 记录只在本机，history.jsonl 与 history.csv 都已加入 .gitignore
+- 控制台「答题记录」卡片可查看最近 20 条，点「导出 CSV」下载全量（带 BOM，Excel 打开中文不乱码）
 
 ## HTTP 接口
 
@@ -106,7 +119,9 @@ node relay.js
 | POST | /api/config | 更新配置（Key 传空则保留原值） |
 | POST | /api/test | 测试指定上游，可传 {"provider":"local"} |
 | GET | /api/stats | 汇总统计 |
-| GET | /api/logs?n=50 | 最近请求明细 |
+| GET | /api/logs?n=50 | 最近请求明细（排障日志） |
+| GET | /api/history?n=50 | 答题记录（题目 / 答案 / 上游） |
+| GET | /api/history.csv?n=5000 | 答题记录 CSV 下载 |
 | GET | /search?q=... | 手动试搜索 |
 
 ## 安全

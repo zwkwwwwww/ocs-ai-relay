@@ -81,7 +81,7 @@
 <header>
   <span class="dot" id="healthDot"></span>
   <h1>ocs-ai-relay</h1>
-  <span class="ver">v1.1.0 · 本地中转控制台</span>
+  <span class="ver">v1.2.0 · 本地中转控制台</span>
   <span class="pill" id="providerPill">读取配置中…</span>
 </header>
 
@@ -157,6 +157,15 @@
         <tbody id="logBody"><tr><td colspan="6" class="muted">暂无记录</td></tr></tbody>
       </table>
       <div class="hint">只展示最近 20 条；完整日志见项目根目录 <code>requests.jsonl</code>。</div>
+    </div>
+
+    <div class="card">
+      <h2>答题记录 <button class="mini" id="btnExportHistory">导出 CSV</button></h2>
+      <table>
+        <thead><tr><th>时间</th><th>类型</th><th>题目</th><th>答案</th><th>上游</th><th>耗时</th></tr></thead>
+        <tbody id="historyBody"><tr><td colspan="6" class="muted">暂无记录</td></tr></tbody>
+      </table>
+      <div class="hint">每答一题追加一条，存于项目根目录 <code>history.jsonl</code>；只在本机，不会提交到仓库。</div>
     </div>
   </section>
 </main>
@@ -421,6 +430,32 @@
     });
   }
 
+  function renderHistory(entries) {
+    var body = el("historyBody");
+    if (!entries || !entries.length) {
+      body.innerHTML = '<tr><td colspan="6" class="muted">暂无记录</td></tr>';
+      return;
+    }
+    body.innerHTML = "";
+    entries.forEach(function (entry) {
+      var tr = document.createElement("tr");
+      function cell(text, className, title) {
+        var td = document.createElement("td");
+        td.textContent = text;
+        if (className) td.className = className;
+        if (title) td.title = title;
+        return td;
+      }
+      tr.appendChild(cell(entry.ts ? new Date(entry.ts).toLocaleString() : "-", "muted"));
+      tr.appendChild(cell(entry.type || "-", "muted"));
+      tr.appendChild(cell(entry.question || "-", "q", entry.question || ""));
+      tr.appendChild(cell(entry.answer || "-", "a", entry.answer || ""));
+      tr.appendChild(cell(entry.provider || "-", "muted"));
+      tr.appendChild(cell(entry.ms ? entry.ms + "ms" : "-"));
+      body.appendChild(tr);
+    });
+  }
+
   function refresh() {
     request("/api/stats").then(function (stats) {
       el("sTotal").textContent = stats.total;
@@ -431,6 +466,7 @@
       setHealth(true);
     }).catch(function () { setHealth(false); });
     request("/api/logs?n=20").then(function (data) { renderLogs(data.entries); }).catch(function () {});
+    request("/api/history?n=20").then(function (data) { renderHistory(data.entries); }).catch(function () {});
   }
 
   el("btnSave").addEventListener("click", save);
@@ -440,6 +476,7 @@
     state.routes.push({ model: "", provider: state.defaultProvider || providerNames()[0] || "" });
     renderRoutes();
   });
+  el("btnExportHistory").addEventListener("click", function () { window.open("/api/history.csv", "_blank"); });
   loadConfig().then(refresh);
   setInterval(refresh, 10000);
 })();

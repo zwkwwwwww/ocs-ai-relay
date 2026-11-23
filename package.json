@@ -1,6 +1,6 @@
 {
   "name": "ocs-ai-relay",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Local OpenAI-compatible relay with retries, judgement-question mapping, web-search augmentation, multi-provider model routing and a web control panel.",
   "license": "MIT",
   "main": "relay.js",

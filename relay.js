@@ -6,12 +6,14 @@ const { loadConfig, saveConfig, publicConfig, resolveProvider } = require("./lib
 const { answerQuestion } = require("./lib/pipeline");
 const { searchBing, createSearchCache } = require("./lib/search");
 const { appendLog, readTail, summarize } = require("./lib/logs");
+const history = require("./lib/history");
 const { callModel } = require("./lib/model");
 
 const ROOT = __dirname;
 const UI_FILE = path.join(ROOT, "public", "index.html");
 const REQUESTS_LOG = path.join(ROOT, "requests.jsonl");
-const VERSION = "1.1.0";
+const HISTORY_LOG = path.join(ROOT, "history.jsonl");
+const VERSION = "1.2.0";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -85,6 +87,7 @@ function createRelayServer(options) {
   const getConfig = opts.getConfig || (() => loadConfig());
   const fetchImpl = opts.fetchImpl || fetch;
   const requestsLog = opts.requestsLog || REQUESTS_LOG;
+  const historyLog = opts.historyLog || HISTORY_LOG;
   const startedAt = Date.now();
 
   const server = http.createServer(async (req, res) => {
@@ -186,6 +189,22 @@ function createRelayServer(options) {
         return sendJson(res, 200, { entries: readTail(requestsLog, limit).reverse() });
       }
 
+      if (pathname === "/api/history") {
+        const limit = Number(url.searchParams.get("n")) || 50;
+        return sendJson(res, 200, { entries: history.readTail(historyLog, limit).reverse() });
+      }
+
+      if (pathname === "/api/history.csv") {
+        const limit = Number(url.searchParams.get("n")) || 5000;
+        const csv = history.toCsv(history.readTail(historyLog, limit));
+        res.writeHead(200, Object.assign({}, CORS, {
+          "Content-Type": "text/csv; charset=utf-8",
+          "Content-Disposition": "attachment; filename=\"ocs-ai-relay-history.csv\""
+        }));
+        // 带 BOM，Excel 打开中文不乱码
+        return res.end("\ufeff" + csv);
+      }
+
       if (pathname === "/search") {
         const query = url.searchParams.get("q") || "";
         const config = getConfig();
@@ -209,6 +228,20 @@ function createRelayServer(options) {
           fetchImpl,
           log: (entry) => appendLog(requestsLog, Object.assign({ ts: new Date().toISOString() }, entry))
         });
+        // 每道题一条结构化记录（题目 / 选项 / 答案 / 上游 / 耗时），落本机 history.jsonl
+        try {
+          history.append(historyLog, {
+            ts: new Date().toISOString(),
+            question: result.meta.question,
+            options: result.meta.options,
+            answer: result.meta.answer,
+            provider: result.meta.provider,
+            model: result.meta.model,
+            searched: result.meta.searched,
+            judgementMapped: result.meta.mappedJudgement,
+            ms: result.meta.ms
+          });
+        } catch { /* 记录失败不能影响答题 */ }
         return sendJson(res, result.status, result.text);
       }
 
