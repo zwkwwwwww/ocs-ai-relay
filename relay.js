@@ -7,13 +7,14 @@ const { answerQuestion } = require("./lib/pipeline");
 const { searchBing, createSearchCache } = require("./lib/search");
 const { appendLog, readTail, summarize } = require("./lib/logs");
 const history = require("./lib/history");
+const { computeBatches } = require("./lib/stats");
 const { callModel } = require("./lib/model");
 
 const ROOT = __dirname;
 const UI_FILE = path.join(ROOT, "public", "index.html");
 const REQUESTS_LOG = path.join(ROOT, "requests.jsonl");
 const HISTORY_LOG = path.join(ROOT, "history.jsonl");
-const VERSION = "1.3.0";
+const VERSION = "1.4.0";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -69,6 +70,7 @@ function buildPatch(body) {
   if (body.search && typeof body.search === "object") {
     patch.search = {};
     if (body.search.mode) patch.search.mode = body.search.mode;
+    if (body.search.backend) patch.search.backend = body.search.backend;
     if (body.search.topN !== undefined) patch.search.topN = body.search.topN;
     if (body.search.timeoutMs !== undefined) patch.search.timeoutMs = body.search.timeoutMs;
     if (body.search.cacheTtlMs !== undefined) patch.search.cacheTtlMs = body.search.cacheTtlMs;
@@ -206,6 +208,19 @@ function createRelayServer(options) {
         const total = rows.length;
         const entries = rows.slice().reverse().slice(offset, offset + limit);
         return sendJson(res, 200, { total, offset, limit, entries });
+      }
+
+      if (pathname === "/api/batches") {
+        const gapMs = Number(url.searchParams.get("gap")) || 600000;
+        const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("limit")) || 10));
+        const rows = history.readAll(historyLog);
+        const all = computeBatches(rows, gapMs);
+        return sendJson(res, 200, {
+          gapMs,
+          answers: rows.length,
+          total: all.length,
+          batches: all.slice(-limit).reverse()
+        });
       }
 
       if (pathname === "/api/history/clear" && req.method === "POST") {

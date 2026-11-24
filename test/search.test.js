@@ -1,7 +1,7 @@
 "use strict";
 const test = require("node:test");
 const assert = require("node:assert");
-const { parseBingHtml, stripTags, createSearchCache, searchBing, parseNativeSearch } = require("../lib/search");
+const { parseBingHtml, stripTags, createSearchCache, searchBing, sanitizeQuery, parseNativeSearch, extractResponseUrls } = require("../lib/search");
 
 const FIXTURE = [
   '<ol id="b_results">',
@@ -83,4 +83,28 @@ test("parses native citations from a chat completions payload", () => {
   const items = parseNativeSearch(payload);
   assert.equal(items.length, 1);
   assert.equal(items[0].title, "来源 C");
+});
+
+test("sanitizes full-width punctuation out of quiz stems", () => {
+  assert.equal(sanitizeQuery("光速比声速快。（）"), "光速比声速快");
+  assert.equal(sanitizeQuery("以下哪个是中国的首都？"), "以下哪个是中国的首都");
+  assert.equal(sanitizeQuery("  "), "");
+});
+
+test("retries with the sanitized query when the raw stem returns nothing", async () => {
+  const calls = [];
+  const fetchImpl = async (url) => {
+    calls.push(url);
+    if (calls.length <= 2) return { ok: true, text: async () => "<html></html>" };
+    return { ok: true, text: async () => FIXTURE };
+  };
+  const items = await searchBing("光速比声速快。（）", { topN: 2, fetchImpl });
+  assert.equal(items.length, 2);
+  assert.ok(calls[calls.length - 1].indexOf(encodeURIComponent("光速比声速快")) >= 0);
+});
+
+test("extracts URLs from response text when annotations are missing", () => {
+  const items = extractResponseUrls({ output: [{ content: [{ text: "参考 https://example.com/a 与 https://example.com/b" }] }] }, 3);
+  assert.equal(items.length, 2);
+  assert.equal(items[0].title, "https://example.com/a");
 });

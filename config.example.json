@@ -30,6 +30,7 @@
     "backoffMs": 400
   },
   "search": {
+    "backend": "auto",
     "mode": "always",
     "engine": "bing",
     "topN": 3,

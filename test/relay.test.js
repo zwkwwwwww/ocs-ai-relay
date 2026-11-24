@@ -168,6 +168,13 @@ test("routes by model, fails over between providers and maps judgement", async (
   assert.equal(overview.providers.length, 3);
   assert.equal(typeof overview.avgMs, "number");
 
+  // 批次统计
+  const batches = await fetch(base + "/api/batches?limit=5").then((r) => r.json());
+  assert.equal(batches.answers >= 3, true);
+  assert.equal(batches.batches.length >= 1, true);
+  assert.equal(batches.batches[0].count >= 1, true);
+  assert.equal(typeof batches.batches[0].avgMs, "number");
+
   // 路由解析
   const resolved = await fetch(base + "/api/routes/resolve?model=" + encodeURIComponent("auto/deepseek-v4.1-flash")).then((r) => r.json());
   assert.equal(resolved.provider, "local");

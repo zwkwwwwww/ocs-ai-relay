@@ -149,7 +149,7 @@
   <aside class="sidebar">
     <div class="brand">
       <div class="logo">◈</div>
-      <div><strong>ocs-ai-relay</strong><small id="versionText">v1.3.0 · 本地中转</small></div>
+      <div><strong>ocs-ai-relay</strong><small id="versionText">v1.4.0 · 本地中转</small></div>
     </div>
     <nav class="nav">
       <button data-page="overview" class="active"><span class="ico">▤</span>概览</button>
@@ -205,6 +205,14 @@
           <h2>最近失败</h2>
           <div class="list" id="recentFails"></div>
         </div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <h2>答题批次 <span class="muted" id="batchHint" style="font-size:12px;font-weight:400"></span></h2>
+        <table>
+          <thead><tr><th>时间段</th><th style="width:70px">题数</th><th style="width:100px">平均耗时</th><th style="width:110px">主要上游</th><th style="width:80px">联网</th></tr></thead>
+          <tbody id="batchRows"><tr><td colspan="5" class="empty">暂无批次</td></tr></tbody>
+        </table>
       </div>
     </section>
 
@@ -283,6 +291,7 @@
           <h2>联网搜索</h2>
           <div class="row">
             <div class="field"><label>模式</label><select id="searchMode"><option value="always">总是搜索</option><option value="fallback">答不出才搜</option><option value="off">关闭</option></select></div>
+            <div class="field"><label>搜索后端</label><select id="searchBackend"><option value="auto">自动（原生优先，失败转 Bing）</option><option value="native">仅原生 web_search</option><option value="bing">仅 Bing 抓取</option></select></div>
             <div class="field"><label>条数</label><input id="searchTopN" type="number" min="1" max="8" /></div>
             <div class="field"><label>超时 ms</label><input id="searchTimeout" type="number" min="1000" max="30000" step="500" /></div>
           </div>
@@ -491,8 +500,26 @@
       : '<div class="empty">最近没有失败</div>';
   }
 
+  function renderBatches(data) {
+    var rows = data.batches || [];
+    $("batchHint").textContent = "按 " + Math.round((data.gapMs || 600000) / 60000) + " 分钟间隔切分 · 共 " + (data.total || 0) + " 批 / " + (data.answers || 0) + " 题";
+    $("batchRows").innerHTML = rows.length ? rows.map(function (batch) {
+      var providers = batch.providers || {};
+      var top = Object.keys(providers).sort(function (a, b) { return (providers[b] || 0) - (providers[a] || 0); })[0] || "-";
+      return "<tr><td class=\"muted\">" + esc(new Date(batch.start).toLocaleString("zh-CN", { hour12: false })) + " → " + esc(new Date(batch.end).toLocaleTimeString("zh-CN", { hour12: false })) + "</td>" +
+        "<td><strong>" + batch.count + "</strong></td>" +
+        "<td>" + (batch.avgMs ? batch.avgMs + "ms" : "-") + "</td>" +
+        "<td class=\"muted\">" + esc(top) + "</td>" +
+        "<td class=\"muted\">" + batch.searched + " 次</td></tr>";
+    }).join("") : '<tr><td colspan="5" class="empty">暂无批次</td></tr>';
+  }
+
+  function loadBatches() {
+    return api("/api/batches?limit=6").then(renderBatches).catch(function () {});
+  }
+
   function loadOverview() {
-    return api("/api/overview").then(function (data) { renderOverview(data); health(true); })
+    return api("/api/overview").then(function (data) { renderOverview(data); health(true); loadBatches(); })
       .catch(function (error) { health(false); toast("概览加载失败：" + error.message, "bad"); });
   }
 
@@ -723,6 +750,7 @@
     var config = state.config;
     if (!config) return;
     $("searchMode").value = config.search.mode;
+    $("searchBackend").value = config.search.backend || "auto";
     $("searchTopN").value = config.search.topN;
     $("searchTimeout").value = config.search.timeoutMs;
     $("retryAttempts").value = config.retry.attempts;
@@ -736,7 +764,8 @@
       ["数据文件", (config.configPath || "").replace(/config\.json$/, "history.jsonl")],
       ["默认上游", config.defaultProvider],
       ["监听地址", (config.host || "127.0.0.1") + ":" + config.port],
-      ["搜索模式", config.search.mode]
+      ["搜索模式", config.search.mode],
+      ["搜索后端", config.search.backend || "auto"]
     ].map(function (pair) {
       return '<div class="k">' + esc(pair[0]) + '</div><div class="v mono">' + esc(pair[1]) + "</div>";
     }).join("");
@@ -746,6 +775,7 @@
     var payload = {
       search: {
         mode: $("searchMode").value,
+        backend: $("searchBackend").value,
         topN: Number($("searchTopN").value),
         timeoutMs: Number($("searchTimeout").value)
       },

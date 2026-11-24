@@ -1,6 +1,6 @@
 {
   "name": "ocs-ai-relay",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Local OpenAI-compatible relay for quiz userscripts: multi-provider routing, retries, judgement mapping, web-search augmentation, per-question history and a dashboard UI.",
   "license": "MIT",
   "main": "relay.js",
