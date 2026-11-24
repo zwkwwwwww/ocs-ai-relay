@@ -149,7 +149,7 @@
   <aside class="sidebar">
     <div class="brand">
       <div class="logo">◈</div>
-      <div><strong>ocs-ai-relay</strong><small id="versionText">v1.4.0 · 本地中转</small></div>
+      <div><strong>ocs-ai-relay</strong><small id="versionText">v1.4.1 · 本地中转</small></div>
     </div>
     <nav class="nav">
       <button data-page="overview" class="active"><span class="ico">▤</span>概览</button>
@@ -210,8 +210,8 @@
       <div class="card" style="margin-top:16px">
         <h2>答题批次 <span class="muted" id="batchHint" style="font-size:12px;font-weight:400"></span></h2>
         <table>
-          <thead><tr><th>时间段</th><th style="width:70px">题数</th><th style="width:100px">平均耗时</th><th style="width:110px">主要上游</th><th style="width:80px">联网</th></tr></thead>
-          <tbody id="batchRows"><tr><td colspan="5" class="empty">暂无批次</td></tr></tbody>
+          <thead><tr><th>时间段</th><th style="width:70px">题数</th><th style="width:100px">平均耗时</th><th style="width:110px">主要上游</th><th style="width:70px">联网</th><th style="width:80px"></th></tr></thead>
+          <tbody id="batchRows"><tr><td colspan="6" class="empty">暂无批次</td></tr></tbody>
         </table>
       </div>
     </section>
@@ -510,8 +510,17 @@
         "<td><strong>" + batch.count + "</strong></td>" +
         "<td>" + (batch.avgMs ? batch.avgMs + "ms" : "-") + "</td>" +
         "<td class=\"muted\">" + esc(top) + "</td>" +
-        "<td class=\"muted\">" + batch.searched + " 次</td></tr>";
-    }).join("") : '<tr><td colspan="5" class="empty">暂无批次</td></tr>';
+        "<td class=\"muted\">" + batch.searched + " 次</td>" +
+        '<td><button class="btn sm" data-role="batch-export" data-from="' + esc(batch.start) + '" data-to="' + esc(batch.end) + '">导出</button></td></tr>';
+    }).join("") : '<tr><td colspan="6" class="empty">暂无批次</td></tr>';
+
+    Array.prototype.forEach.call(document.querySelectorAll('[data-role="batch-export"]'), function (button) {
+      button.addEventListener("click", function () {
+        var from = button.getAttribute("data-from");
+        var to = button.getAttribute("data-to");
+        window.open("/api/history.csv?from=" + encodeURIComponent(from) + "&to=" + encodeURIComponent(to), "_blank");
+      });
+    });
   }
 
   function loadBatches() {
@@ -745,6 +754,16 @@
     loadHistory();
   }
 
+  function exportHistory() {
+    var filters = state.history.filters;
+    var params = [];
+    if (filters.q) params.push("q=" + encodeURIComponent(filters.q));
+    if (filters.type) params.push("type=" + encodeURIComponent(filters.type));
+    if (filters.provider) params.push("provider=" + encodeURIComponent(filters.provider));
+    if (filters.since) params.push("since=" + filters.since);
+    window.open("/api/history.csv" + (params.length ? "?" + params.join("&") : ""), "_blank");
+  }
+
   // ---------- 设置 ----------
   function renderSettings() {
     var config = state.config;
@@ -827,7 +846,7 @@
       loadHistory();
     }
   });
-  $("btnExport").addEventListener("click", function () { window.open("/api/history.csv", "_blank"); });
+  $("btnExport").addEventListener("click", exportHistory);
   $("btnClearHistory").addEventListener("click", function () {
     if (!window.confirm("清空全部答题记录？此操作不可恢复。")) return;
     postJson("/api/history/clear", {}).then(function () { toast("记录已清空", "ok"); loadHistory(); loadOverview(); })

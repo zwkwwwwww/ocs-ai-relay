@@ -168,6 +168,14 @@ test("routes by model, fails over between providers and maps judgement", async (
   assert.equal(overview.providers.length, 3);
   assert.equal(typeof overview.avgMs, "number");
 
+  // 按时间范围筛选与按批次导出 CSV
+  const allRows = await fetch(base + "/api/history?n=100").then((r) => r.json());
+  const oldest = allRows.entries[allRows.entries.length - 1].ts;
+  const range = await fetch(base + "/api/history?since=" + encodeURIComponent(oldest) + "&until=" + encodeURIComponent(oldest)).then((r) => r.json());
+  assert.equal(range.total, 1);
+  const batchCsv = await fetch(base + "/api/history.csv?from=" + encodeURIComponent(oldest) + "&to=" + encodeURIComponent(oldest)).then((r) => r.text());
+  assert.equal(batchCsv.trim().split("\r\n").length, 2);
+
   // 批次统计
   const batches = await fetch(base + "/api/batches?limit=5").then((r) => r.json());
   assert.equal(batches.answers >= 3, true);

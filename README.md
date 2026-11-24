@@ -121,6 +121,7 @@ node relay.js
 - 记录只在本机，history.jsonl 与 history.csv 都已加入 .gitignore
 - 控制台「答题记录」页可筛选、分页、查看详情（点行打开抽屉），点「导出 CSV」下载全量（带 BOM，Excel 打开中文不乱码）
 - 「概览」页的**答题批次**按空闲间隔切分（默认 10 分钟）：每批显示时间段、题数、平均耗时、主要上游、触发联网次数。接口：`GET /api/batches?gap=600000&limit=10`
+- 每批右侧有「导出」按钮，只下载这一批的 CSV（后端按 `from` / `to` 时间范围筛选，文件名形如 `ocs-ai-relay-batch-20261125-0040-0110.csv`）
 
 ## HTTP 接口
 
@@ -133,9 +134,10 @@ node relay.js
 | POST | /api/test | 测试指定上游，可传 {"provider":"local"} |
 | GET | /api/stats | 汇总统计 |
 | GET | /api/logs?n=50 | 最近请求明细（排障日志） |
-| GET | /api/history?n=50&offset=0&q=&type=&provider=&since= | 答题记录（支持筛选与分页，返回 total） |
+| GET | /api/history?n=50&offset=0&q=&type=&provider=&since=&until= | 答题记录（支持筛选与分页，返回 total） |
 | POST | /api/history/clear | 清空答题记录 |
 | GET | /api/history.csv?n=5000 | 答题记录 CSV 下载 |
+| GET | /api/history.csv?from=&to=&q=&type=&provider= | 按批次 / 条件导出 CSV（from/to 接受 ISO 或毫秒） |
 | GET | /api/overview | 概览聚合（今日、24 小时桶、上游统计、最近失败） |
 | GET | /api/routes/resolve?model=auto/x | 查询某模型会命中哪个上游 |
 | GET | /api/batches?gap=600000&limit=10 | 答题批次统计（按空闲间隔切分） |

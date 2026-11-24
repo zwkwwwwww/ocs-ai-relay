@@ -14,7 +14,7 @@ const ROOT = __dirname;
 const UI_FILE = path.join(ROOT, "public", "index.html");
 const REQUESTS_LOG = path.join(ROOT, "requests.jsonl");
 const HISTORY_LOG = path.join(ROOT, "history.jsonl");
-const VERSION = "1.4.0";
+const VERSION = "1.4.1";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -81,6 +81,36 @@ function buildPatch(body) {
     if (body.retry.backoffMs !== undefined) patch.retry.backoffMs = body.retry.backoffMs;
   }
   return patch;
+}
+
+function parseTimeParam(value) {
+  if (!value) return 0;
+  const num = Number(value);
+  if (Number.isFinite(num) && num > 0) return num;
+  const parsed = Date.parse(String(value));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+// 记录筛选：q / type / provider / since(from) / until(to)，JSON 与 CSV 共用
+function filterHistoryRows(rows, params) {
+  const keyword = String(params.get("q") || "").trim().toLowerCase();
+  const type = String(params.get("type") || "").trim();
+  const provider = String(params.get("provider") || "").trim();
+  const since = parseTimeParam(params.get("since") || params.get("from"));
+  const until = parseTimeParam(params.get("until") || params.get("to"));
+  let out = rows;
+  if (keyword) out = out.filter((row) => String(row.question || "").toLowerCase().indexOf(keyword) >= 0 || String(row.answer || "").toLowerCase().indexOf(keyword) >= 0);
+  if (type) out = out.filter((row) => row.type === type);
+  if (provider) out = out.filter((row) => row.provider === provider);
+  if (since) out = out.filter((row) => Date.parse(row.ts) >= since);
+  if (until) out = out.filter((row) => Date.parse(row.ts) <= until);
+  return out;
+}
+
+function fileStamp(ms) {
+  const date = new Date(ms);
+  const pad = (value) => String(value).padStart(2, "0");
+  return String(date.getFullYear()) + pad(date.getMonth() + 1) + pad(date.getDate()) + "-" + pad(date.getHours()) + pad(date.getMinutes());
 }
 
 function createRelayServer(options) {
@@ -194,16 +224,7 @@ function createRelayServer(options) {
       if (pathname === "/api/history") {
         const limit = Math.min(500, Math.max(1, Number(url.searchParams.get("n")) || 50));
         const offset = Math.max(0, Number(url.searchParams.get("offset")) || 0);
-        const keyword = String(url.searchParams.get("q") || "").trim().toLowerCase();
-        const type = String(url.searchParams.get("type") || "").trim();
-        const provider = String(url.searchParams.get("provider") || "").trim();
-        const since = Number(url.searchParams.get("since")) || 0;
-
-        let rows = history.readAll(historyLog);
-        if (keyword) rows = rows.filter((row) => String(row.question || "").toLowerCase().indexOf(keyword) >= 0 || String(row.answer || "").toLowerCase().indexOf(keyword) >= 0);
-        if (type) rows = rows.filter((row) => row.type === type);
-        if (provider) rows = rows.filter((row) => row.provider === provider);
-        if (since) rows = rows.filter((row) => Date.parse(row.ts) >= since);
+        const rows = filterHistoryRows(history.readAll(historyLog), url.searchParams);
 
         const total = rows.length;
         const entries = rows.slice().reverse().slice(offset, offset + limit);
@@ -318,11 +339,15 @@ function createRelayServer(options) {
       }
 
       if (pathname === "/api/history.csv") {
-        const limit = Number(url.searchParams.get("n")) || 5000;
-        const csv = history.toCsv(history.readTail(historyLog, limit));
+        const limit = Math.min(20000, Math.max(1, Number(url.searchParams.get("n")) || 5000));
+        const rows = filterHistoryRows(history.readAll(historyLog), url.searchParams).slice(-limit);
+        const csv = history.toCsv(rows);
+        const from = parseTimeParam(url.searchParams.get("from") || url.searchParams.get("since"));
+        const to = parseTimeParam(url.searchParams.get("to") || url.searchParams.get("until"));
+        const name = from ? "ocs-ai-relay-batch-" + fileStamp(from) + "-" + fileStamp(to || Date.now()) + ".csv" : "ocs-ai-relay-history.csv";
         res.writeHead(200, Object.assign({}, CORS, {
           "Content-Type": "text/csv; charset=utf-8",
-          "Content-Disposition": "attachment; filename=\"ocs-ai-relay-history.csv\""
+          "Content-Disposition": "attachment; filename=\"" + name + "\""
         }));
         // 带 BOM，Excel 打开中文不乱码
         return res.end("\ufeff" + csv);
