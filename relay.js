@@ -13,7 +13,7 @@ const ROOT = __dirname;
 const UI_FILE = path.join(ROOT, "public", "index.html");
 const REQUESTS_LOG = path.join(ROOT, "requests.jsonl");
 const HISTORY_LOG = path.join(ROOT, "history.jsonl");
-const VERSION = "1.2.0";
+const VERSION = "1.3.0";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -116,14 +116,14 @@ function createRelayServer(options) {
       }
 
       if (pathname === "/api/config" && req.method === "GET") {
-        return sendJson(res, 200, publicConfig(getConfig()));
+        return sendJson(res, 200, Object.assign(publicConfig(getConfig()), { version: VERSION }));
       }
 
       if (pathname === "/api/config" && req.method === "POST") {
         const body = safeParse(await readBody(req));
         if (!body) return sendJson(res, 400, { error: { message: "invalid json" } });
         const saved = saveConfig(buildPatch(body));
-        return sendJson(res, 200, publicConfig(saved));
+        return sendJson(res, 200, Object.assign(publicConfig(saved), { version: VERSION }));
       }
 
       if (pathname === "/api/test" && req.method === "POST") {
@@ -190,8 +190,116 @@ function createRelayServer(options) {
       }
 
       if (pathname === "/api/history") {
-        const limit = Number(url.searchParams.get("n")) || 50;
-        return sendJson(res, 200, { entries: history.readTail(historyLog, limit).reverse() });
+        const limit = Math.min(500, Math.max(1, Number(url.searchParams.get("n")) || 50));
+        const offset = Math.max(0, Number(url.searchParams.get("offset")) || 0);
+        const keyword = String(url.searchParams.get("q") || "").trim().toLowerCase();
+        const type = String(url.searchParams.get("type") || "").trim();
+        const provider = String(url.searchParams.get("provider") || "").trim();
+        const since = Number(url.searchParams.get("since")) || 0;
+
+        let rows = history.readAll(historyLog);
+        if (keyword) rows = rows.filter((row) => String(row.question || "").toLowerCase().indexOf(keyword) >= 0 || String(row.answer || "").toLowerCase().indexOf(keyword) >= 0);
+        if (type) rows = rows.filter((row) => row.type === type);
+        if (provider) rows = rows.filter((row) => row.provider === provider);
+        if (since) rows = rows.filter((row) => Date.parse(row.ts) >= since);
+
+        const total = rows.length;
+        const entries = rows.slice().reverse().slice(offset, offset + limit);
+        return sendJson(res, 200, { total, offset, limit, entries });
+      }
+
+      if (pathname === "/api/history/clear" && req.method === "POST") {
+        try { fs.writeFileSync(historyLog, ""); } catch (error) { return sendJson(res, 500, { error: { message: String((error && error.message) || error) } }); }
+        return sendJson(res, 200, { ok: true });
+      }
+
+      if (pathname === "/api/overview") {
+        const config = getConfig();
+        const rows = history.readAll(historyLog);
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+        const todayRows = rows.filter((row) => Date.parse(row.ts) >= startOfToday.getTime());
+        const durations = rows.map((row) => Number(row.ms)).filter((value) => Number.isFinite(value) && value > 0);
+        const avgMs = durations.length ? Math.round(durations.reduce((sum, value) => sum + value, 0) / durations.length) : 0;
+
+        const buckets = [];
+        const now = new Date();
+        now.setMinutes(0, 0, 0);
+        for (let i = 23; i >= 0; i -= 1) {
+          const hour = new Date(now.getTime() - i * 3600000);
+          buckets.push({ hour: hour.getHours(), count: 0 });
+        }
+        const base = now.getTime() - 23 * 3600000;
+        for (const row of rows) {
+          const ts = Date.parse(row.ts);
+          if (!Number.isFinite(ts) || ts < base) continue;
+          const index = Math.floor((ts - base) / 3600000);
+          if (index >= 0 && index < buckets.length) buckets[index].count += 1;
+        }
+
+        const perProvider = {};
+        for (const name of Object.keys(config.providers || {})) perProvider[name] = { total: 0, fails: 0 };
+        for (const row of rows) {
+          const name = row.provider || "unknown";
+          if (!perProvider[name]) perProvider[name] = { total: 0, fails: 0 };
+          perProvider[name].total += 1;
+          if (Number(row.ms) <= 0) perProvider[name].fails += 1;
+        }
+
+        const attempts = readTail(requestsLog, 2000);
+        const fails = attempts.filter((entry) => entry.ok === false && typeof entry.attempt === "number");
+        const searched = attempts.filter((entry) => entry.searched === true).length;
+
+        return sendJson(res, 200, {
+          uptimeMs: Date.now() - startedAt,
+          version: VERSION,
+          totalAnswers: rows.length,
+          todayAnswers: todayRows.length,
+          avgMs,
+          searchCount: searched,
+          failCount: fails.length,
+          providers: Object.keys(config.providers || {}).map((name) => ({
+            name,
+            upstream: config.providers[name].upstream,
+            enabled: config.providers[name].enabled !== false,
+            default: name === config.defaultProvider
+          })),
+          perProvider,
+          buckets,
+          recentFails: fails.slice(-5).reverse().map((entry) => ({ ts: entry.ts, provider: entry.provider, status: entry.status, q: entry.q })),
+          recentAnswers: rows.slice(-5).reverse()
+        });
+      }
+
+      if (pathname === "/api/routes/resolve") {
+        const config = getConfig();
+        const model = String(url.searchParams.get("model") || "");
+        const provider = resolveProvider(config, model);
+        return sendJson(res, 200, { model, provider: provider || null, defaultProvider: config.defaultProvider });
+      }
+
+      if (pathname === "/api/providers/test-all" && req.method === "POST") {
+        const config = getConfig();
+        const results = [];
+        for (const name of Object.keys(config.providers || {})) {
+          const provider = config.providers[name];
+          if (!provider || provider.enabled === false) { results.push({ provider: name, ok: false, skipped: true }); continue; }
+          const started = Date.now();
+          let model = String(config.model || "");
+          if (!model) {
+            try {
+              const headers = provider.apiKey ? { Authorization: "Bearer " + provider.apiKey } : {};
+              const listing = await fetchImpl(provider.upstream + "/v1/models", { headers, signal: AbortSignal.timeout(8000) });
+              const parsed = safeParse(await listing.text());
+              const list = parsed && Array.isArray(parsed.data) ? parsed.data.filter((item) => item && item.id) : [];
+              const chat = list.find((item) => !/image|embed|tts|whisper|audio|video|rerank|moderation|ocr|seedance/i.test(String(item.id)));
+              if (chat) model = String(chat.id);
+            } catch { /* 探测失败就用默认模型名 */ }
+          }
+          const result = await callModel(provider, { model: model || "gpt-3.5-turbo", messages: [{ role: "user", content: "ping" }], max_tokens: 8 }, null, { fetchImpl, timeoutMs: 15000 });
+          results.push({ provider: name, ok: result.status === 200, status: result.status, ms: Date.now() - started, model: model || "gpt-3.5-turbo" });
+        }
+        return sendJson(res, 200, { results });
       }
 
       if (pathname === "/api/history.csv") {

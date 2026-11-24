@@ -1,191 +1,361 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="dark">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>ocs-ai-relay 控制台</title>
 <style>
-  :root {
-    --bg: #0f1115;
-    --panel: #171a21;
-    --panel-2: #1d2129;
-    --line: #2a2f3a;
-    --text: #e6e9ef;
-    --muted: #8b93a3;
-    --accent: #4f8cff;
-    --ok: #35c98b;
+  :root, [data-theme="dark"] {
+    --bg: #0d1014;
+    --panel: #151920;
+    --panel-2: #1b2028;
+    --line: #262c36;
+    --text: #e8ecf2;
+    --muted: #8a93a3;
+    --accent: #5b8cff;
+    --accent-2: #7c5bff;
+    --ok: #34c98b;
+    --warn: #f0b443;
     --bad: #ef5b5b;
-    --radius: 12px;
-    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    --shadow: 0 10px 30px rgba(0,0,0,.35);
+  }
+  [data-theme="light"] {
+    --bg: #f5f7fb;
+    --panel: #ffffff;
+    --panel-2: #f0f3f9;
+    --line: #e2e7f0;
+    --text: #1a1f2b;
+    --muted: #6b7385;
+    --shadow: 0 8px 24px rgba(20,30,60,.08);
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text); font-size: 14px; }
-  header { display: flex; align-items: center; gap: 12px; padding: 18px 24px; border-bottom: 1px solid var(--line); }
-  header h1 { font-size: 17px; margin: 0; font-weight: 600; }
-  header .ver { color: var(--muted); font-size: 12px; }
-  .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: #222732; color: var(--muted); font-size: 12px; }
-  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
-  .dot.ok { background: var(--ok); box-shadow: 0 0 8px rgba(53,201,139,.7); }
-  .dot.bad { background: var(--bad); box-shadow: 0 0 8px rgba(239,91,91,.7); }
-  main { max-width: 1220px; margin: 0 auto; padding: 22px 24px 60px; display: grid; grid-template-columns: 470px 1fr; gap: 18px; }
-  @media (max-width: 1000px) { main { grid-template-columns: 1fr; } }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; margin-bottom: 16px; }
-  .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); margin: 0 0 14px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
-  label { display: block; font-size: 12px; color: var(--muted); margin: 12px 0 6px; }
-  label:first-child { margin-top: 0; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    font-size: 14px; line-height: 1.5;
+  }
+  .app { display: flex; min-height: 100vh; }
+  .sidebar {
+    width: 226px; flex: 0 0 226px; background: var(--panel); border-right: 1px solid var(--line);
+    display: flex; flex-direction: column; padding: 18px 14px; position: sticky; top: 0; height: 100vh;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; padding: 4px 8px 18px; }
+  .brand .logo {
+    width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; color: #fff; font-weight: 800;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  }
+  .brand strong { display: block; font-size: 14px; letter-spacing: .2px; }
+  .brand small { color: var(--muted); font-size: 11px; }
+  .nav { display: flex; flex-direction: column; gap: 4px; }
+  .nav button {
+    display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 11px; border-radius: 9px;
+    background: transparent; border: 1px solid transparent; color: var(--muted); font-size: 13px; cursor: pointer; text-align: left;
+  }
+  .nav button:hover { background: var(--panel-2); color: var(--text); }
+  .nav button.active { background: var(--panel-2); color: var(--text); border-color: var(--line); font-weight: 600; }
+  .nav button .ico { width: 16px; text-align: center; opacity: .9; }
+  .side-foot { margin-top: auto; display: flex; flex-direction: column; gap: 10px; padding: 10px 6px 0; border-top: 1px solid var(--line); }
+  .health { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
+  .dot.ok { background: var(--ok); box-shadow: 0 0 0 3px rgba(52,201,139,.16); }
+  .dot.bad { background: var(--bad); box-shadow: 0 0 0 3px rgba(239,91,91,.16); }
+  .main { flex: 1; min-width: 0; padding: 22px 26px 60px; }
+  .topbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+  .topbar h1 { margin: 0; font-size: 20px; letter-spacing: .2px; }
+  .topbar p { margin: 4px 0 0; color: var(--muted); font-size: 12.5px; }
+  .top-actions { display: flex; gap: 8px; }
+  .page { display: block; }
+  .hidden { display: none !important; }
+  .grid { display: grid; gap: 16px; }
+  .grid.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .grid.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  @media (max-width: 1100px) { .grid.cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .grid.cols-2 { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; box-shadow: var(--shadow); }
+  .card h2 { margin: 0 0 14px; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .stat .label { color: var(--muted); font-size: 12px; }
+  .stat .value { font-size: 28px; font-weight: 700; letter-spacing: .5px; margin-top: 6px; }
+  .stat .sub { color: var(--muted); font-size: 11.5px; margin-top: 4px; }
+  .btn {
+    border: 1px solid var(--line); background: var(--panel-2); color: var(--text); padding: 8px 13px;
+    border-radius: 9px; font-size: 13px; cursor: pointer; white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .btn.primary:hover { filter: brightness(1.08); }
+  .btn.ghost { background: transparent; }
+  .btn.sm { padding: 5px 9px; font-size: 12px; border-radius: 7px; }
+  .btn.danger { color: var(--bad); border-color: rgba(239,91,91,.35); }
+  .btn:disabled { opacity: .55; cursor: not-allowed; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { color: var(--muted); font-size: 12px; }
   input[type=text], input[type=password], input[type=number], select {
-    width: 100%; padding: 8px 10px; background: var(--panel-2); color: var(--text);
-    border: 1px solid var(--line); border-radius: 8px; outline: none; font-size: 13px;
+    width: 100%; padding: 9px 11px; border-radius: 9px; border: 1px solid var(--line);
+    background: var(--panel-2); color: var(--text); font-size: 13px; outline: none;
   }
   input:focus, select:focus { border-color: var(--accent); }
-  .row { display: flex; gap: 10px; }
-  .row > * { flex: 1; min-width: 0; }
-  .inline { display: flex; align-items: center; gap: 8px; margin-top: 12px; color: var(--muted); font-size: 13px; }
-  input[type=checkbox] { accent-color: var(--accent); }
-  .actions { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
-  button { cursor: pointer; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); padding: 8px 14px; border-radius: 8px; font-size: 13px; }
-  button:hover { border-color: #3a4252; }
-  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
-  button.primary:hover { filter: brightness(1.08); }
-  button.mini { padding: 4px 9px; font-size: 12px; }
-  button:disabled { opacity: .5; cursor: not-allowed; }
-  .hint { color: var(--muted); font-size: 12px; margin-top: 8px; line-height: 1.6; }
-  .provider { border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin-bottom: 10px; background: var(--panel-2); }
-  .provider .head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-  .provider .name { font-weight: 600; font-size: 13px; }
-  .provider .badge { font-size: 11px; color: var(--muted); border: 1px solid var(--line); padding: 1px 7px; border-radius: 999px; }
-  .provider .grow { flex: 1; }
-  .routes th, .routes td { padding: 6px 4px; }
-  .routes input, .routes select { padding: 6px 8px; font-size: 12px; }
-  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-  .stat { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
-  .stat .num { font-size: 22px; font-weight: 700; }
-  .stat .lbl { font-size: 11px; color: var(--muted); margin-top: 4px; }
-  .stat.bad .num { color: var(--bad); }
+  .row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+  .row > .field { flex: 1; min-width: 140px; }
+  .badge { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 999px; font-size: 11px; border: 1px solid var(--line); color: var(--muted); }
+  .badge.ok { color: var(--ok); border-color: rgba(52,201,139,.35); }
+  .badge.bad { color: var(--bad); border-color: rgba(239,91,91,.35); }
+  .badge.accent { color: var(--accent); border-color: rgba(91,140,255,.35); }
   table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  th { color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
-  td.q { max-width: 330px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  td.a { max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .status-ok { color: var(--ok); }
-  .status-bad { color: var(--bad); }
+  th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  th { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; font-weight: 600; }
+  tbody tr:hover { background: var(--panel-2); }
+  tr.clickable { cursor: pointer; }
+  .ellipsis { max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ellipsis.sm { max-width: 220px; }
   .muted { color: var(--muted); }
-  #toast { position: fixed; right: 20px; bottom: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 20; }
-  .toast { background: #222834; border: 1px solid var(--line); border-left: 3px solid var(--accent); padding: 10px 14px; border-radius: 8px; font-size: 13px; box-shadow: 0 10px 30px rgba(0,0,0,.4); }
+  .mono { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+  .provider-card { border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; background: var(--panel-2); display: flex; flex-direction: column; gap: 10px; }
+  .provider-head { display: flex; align-items: center; gap: 8px; }
+  .provider-head strong { font-size: 14px; }
+  .grow { flex: 1; }
+  .provider-meta { display: flex; gap: 14px; flex-wrap: wrap; color: var(--muted); font-size: 12px; }
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .spark { display: flex; align-items: flex-end; gap: 4px; height: 96px; padding-top: 8px; }
+  .spark .bar { flex: 1; background: linear-gradient(180deg, var(--accent), rgba(91,140,255,.35)); border-radius: 3px 3px 0 0; min-height: 2px; position: relative; }
+  .spark .bar span { position: absolute; bottom: -18px; left: 0; right: 0; text-align: center; color: var(--muted); font-size: 9px; }
+  .list { display: flex; flex-direction: column; gap: 8px; }
+  .list-item { display: flex; gap: 10px; align-items: center; padding: 9px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel-2); font-size: 12.5px; }
+  .empty { text-align: center; color: var(--muted); padding: 26px 0; font-size: 12.5px; }
+  .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 14px; }
+  .toolbar .field { min-width: 130px; }
+  .pager { display: flex; align-items: center; gap: 10px; justify-content: flex-end; margin-top: 12px; color: var(--muted); font-size: 12.5px; }
+  .drawer-mask { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 40; }
+  .drawer { position: fixed; top: 0; right: 0; height: 100%; width: 460px; max-width: 92vw; background: var(--panel); border-left: 1px solid var(--line); z-index: 41; padding: 22px; overflow: auto; box-shadow: var(--shadow); }
+  .drawer h3 { margin: 0 0 14px; font-size: 16px; }
+  .kv { display: grid; grid-template-columns: 84px 1fr; gap: 8px 12px; font-size: 13px; }
+  .kv .k { color: var(--muted); }
+  .kv .v { word-break: break-word; }
+  #toast { position: fixed; right: 22px; bottom: 22px; display: flex; flex-direction: column; gap: 8px; z-index: 60; }
+  .toast { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--accent); padding: 10px 14px; border-radius: 10px; font-size: 13px; box-shadow: var(--shadow); max-width: 380px; }
   .toast.ok { border-left-color: var(--ok); }
   .toast.bad { border-left-color: var(--bad); }
-  code { background: #10131a; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  .switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; color: var(--muted); font-size: 12.5px; }
+  .switch input { width: 16px; height: 16px; accent-color: var(--accent); }
+  @media (max-width: 860px) {
+    .app { flex-direction: column; }
+    .sidebar { width: 100%; height: auto; position: static; flex: none; }
+    .nav { flex-direction: row; overflow-x: auto; }
+    .main { padding: 18px 16px 40px; }
+  }
 </style>
 </head>
 <body>
-<header>
-  <span class="dot" id="healthDot"></span>
-  <h1>ocs-ai-relay</h1>
-  <span class="ver">v1.2.0 · 本地中转控制台</span>
-  <span class="pill" id="providerPill">读取配置中…</span>
-</header>
-
-<main>
-  <section>
-    <div class="card">
-      <h2>上游服务 <button class="mini" id="btnAddProvider">+ 添加上游</button></h2>
-      <div id="providers"></div>
-      <label for="defaultProvider">默认上游（未命中路由时使用）</label>
-      <select id="defaultProvider"></select>
-      <div class="hint">每个上游是独立的 OpenAI 兼容地址；Key 留空表示保持不变。</div>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">◈</div>
+      <div><strong>ocs-ai-relay</strong><small id="versionText">v1.3.0 · 本地中转</small></div>
     </div>
-
-    <div class="card">
-      <h2>模型路由 <button class="mini" id="btnAddRoute">+ 添加规则</button></h2>
-      <table class="routes">
-        <thead><tr><th style="width:55%">模型匹配</th><th>上游</th><th style="width:40px"></th></tr></thead>
-        <tbody id="routes"></tbody>
-      </table>
-      <div class="hint">支持精确名和通配符，例如 <code>auto/*</code>、<code>group/*</code>、<code>deepseek-flash</code>。</div>
+    <nav class="nav">
+      <button data-page="overview" class="active"><span class="ico">▤</span>概览</button>
+      <button data-page="providers"><span class="ico">☁</span>上游服务</button>
+      <button data-page="routes"><span class="ico">⇄</span>模型路由</button>
+      <button data-page="history"><span class="ico">▦</span>答题记录</button>
+      <button data-page="settings"><span class="ico">⚙</span>设置</button>
+    </nav>
+    <div class="side-foot">
+      <div class="health"><span class="dot" id="healthDot"></span><span id="healthText">连接中…</span></div>
+      <button class="btn ghost sm" id="btnTheme">切换浅色</button>
     </div>
+  </aside>
 
-    <div class="card">
-      <h2>搜索与策略</h2>
-      <label for="searchMode">联网搜索模式</label>
-      <select id="searchMode">
-        <option value="always">总是搜索（最准，稍慢）</option>
-        <option value="fallback">答不出才搜索</option>
-        <option value="off">关闭搜索</option>
-      </select>
-      <div class="row">
-        <div>
-          <label for="topN">搜索条数</label>
-          <input id="topN" type="number" min="1" max="8" step="1" />
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1 id="pageTitle">概览</h1>
+        <p id="pageSub">运行状态、上游健康与最近答题</p>
+      </div>
+      <div class="top-actions">
+        <button class="btn" id="btnRefresh">刷新</button>
+        <button class="btn primary" id="btnQuickSave">保存配置</button>
+      </div>
+    </header>
+
+    <!-- 概览 -->
+    <section class="page" id="page-overview">
+      <div class="grid cols-4" style="margin-bottom:16px">
+        <div class="card stat"><div class="label">今日答题</div><div class="value" id="stToday">-</div><div class="sub" id="stTodaySub">累计 -</div></div>
+        <div class="card stat"><div class="label">平均耗时</div><div class="value" id="stAvg">-</div><div class="sub">最近全部记录</div></div>
+        <div class="card stat"><div class="label">失败尝试</div><div class="value" id="stFails">-</div><div class="sub">来自排障日志</div></div>
+        <div class="card stat"><div class="label">运行时长</div><div class="value" id="stUptime">-</div><div class="sub" id="stVersion">-</div></div>
+      </div>
+
+      <div class="grid cols-2">
+        <div class="card">
+          <h2>近 24 小时答题量</h2>
+          <div class="spark" id="spark"></div>
         </div>
-        <div>
-          <label for="attempts">单上游重试次数</label>
-          <input id="attempts" type="number" min="1" max="5" step="1" />
-        </div>
-        <div>
-          <label for="maxTokens">最大输出</label>
-          <input id="maxTokens" type="number" min="64" max="32768" step="64" />
+        <div class="card">
+          <h2>上游健康 <button class="btn sm" id="btnTestAll">全部测试</button></h2>
+          <div class="list" id="providerHealth"></div>
         </div>
       </div>
-      <div class="inline">
-        <input id="judgementMap" type="checkbox" />
-        <label for="judgementMap" style="margin:0">判断题：把字母答案映射为「对 / 错」</label>
+
+      <div class="grid cols-2" style="margin-top:16px">
+        <div class="card">
+          <h2>最近答题</h2>
+          <div class="list" id="recentAnswers"></div>
+        </div>
+        <div class="card">
+          <h2>最近失败</h2>
+          <div class="list" id="recentFails"></div>
+        </div>
       </div>
-      <div class="actions">
-        <button class="primary" id="btnSave">保存并生效</button>
-        <button id="btnRefresh">重新加载</button>
+    </section>
+
+    <!-- 上游 -->
+    <section class="page hidden" id="page-providers">
+      <div class="card">
+        <h2>上游列表 <button class="btn sm" id="btnTestAll2">全部测试</button></h2>
+        <div class="grid cols-2" id="providerCards"></div>
+        <div class="row" style="margin-top:16px">
+          <div class="field"><label>默认上游（未命中路由时使用）</label><select id="defaultProvider"></select></div>
+          <button class="btn primary" id="btnSaveProviders">保存上游</button>
+        </div>
       </div>
-      <div class="hint" id="configHint"></div>
-    </div>
-  </section>
-
-  <section>
-    <div class="card">
-      <h2>运行状态</h2>
-      <div class="stats">
-        <div class="stat"><div class="num" id="sTotal">-</div><div class="lbl">最近请求数</div></div>
-        <div class="stat bad"><div class="num" id="sFails">-</div><div class="lbl">失败</div></div>
-        <div class="stat"><div class="num" id="sSearched">-</div><div class="lbl">触发搜索</div></div>
-        <div class="stat"><div class="num" id="sAvg">-</div><div class="lbl">平均耗时 ms</div></div>
+      <div class="card" style="margin-top:16px">
+        <h2>添加上游</h2>
+        <div class="row">
+          <div class="field"><label>名称</label><input id="newProviderName" type="text" placeholder="例如 local" /></div>
+          <div class="field" style="flex:2"><label>上游地址</label><input id="newProviderUpstream" type="text" placeholder="https://api.example.com" /></div>
+          <div class="field"><label>API Key（可空）</label><input id="newProviderKey" type="password" placeholder="sk-..." /></div>
+          <button class="btn" id="btnAddProvider">添加</button>
+        </div>
       </div>
-      <div class="hint" id="statsHint"></div>
-    </div>
+    </section>
 
-    <div class="card">
-      <h2>最近请求</h2>
-      <table>
-        <thead><tr><th>时间</th><th>上游</th><th>状态</th><th>耗时</th><th>题目</th><th>答案</th></tr></thead>
-        <tbody id="logBody"><tr><td colspan="6" class="muted">暂无记录</td></tr></tbody>
-      </table>
-      <div class="hint">只展示最近 20 条；完整日志见项目根目录 <code>requests.jsonl</code>。</div>
-    </div>
+    <!-- 路由 -->
+    <section class="page hidden" id="page-routes">
+      <div class="card">
+        <h2>路由规则 <button class="btn sm" id="btnAddRoute">添加规则</button></h2>
+        <table>
+          <thead><tr><th style="width:45%">模型匹配（支持 auto/*）</th><th style="width:35%">上游</th><th style="width:60px"></th></tr></thead>
+          <tbody id="routeRows"></tbody>
+        </table>
+        <div class="row" style="margin-top:16px">
+          <button class="btn primary" id="btnSaveRoutes">保存路由</button>
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <h2>路由测试</h2>
+        <div class="row">
+          <div class="field" style="flex:2"><label>输入模型名</label><input id="routeProbeModel" type="text" placeholder="auto/deepseek-v4.1-flash" /></div>
+          <button class="btn" id="btnResolveRoute">解析</button>
+        </div>
+        <div class="muted" id="routeProbeResult" style="margin-top:10px">尚未测试</div>
+      </div>
+    </section>
 
-    <div class="card">
-      <h2>答题记录 <button class="mini" id="btnExportHistory">导出 CSV</button></h2>
-      <table>
-        <thead><tr><th>时间</th><th>类型</th><th>题目</th><th>答案</th><th>上游</th><th>耗时</th></tr></thead>
-        <tbody id="historyBody"><tr><td colspan="6" class="muted">暂无记录</td></tr></tbody>
-      </table>
-      <div class="hint">每答一题追加一条，存于项目根目录 <code>history.jsonl</code>；只在本机，不会提交到仓库。</div>
-    </div>
-  </section>
-</main>
+    <!-- 记录 -->
+    <section class="page hidden" id="page-history">
+      <div class="card">
+        <h2>答题记录 <span class="muted" id="historyTotal" style="font-size:12px;font-weight:400"></span></h2>
+        <div class="toolbar">
+          <div class="field" style="flex:2"><label>关键词</label><input id="hq" type="text" placeholder="题目或答案包含…" /></div>
+          <div class="field"><label>类型</label><select id="hType"><option value="">全部</option><option value="choice">选择题</option><option value="judgement">判断题</option><option value="completion">填空题</option></select></div>
+          <div class="field"><label>上游</label><select id="hProvider"><option value="">全部</option></select></div>
+          <div class="field"><label>时间</label><select id="hRange"><option value="0">全部</option><option value="1">今天</option><option value="7">近 7 天</option></select></div>
+          <button class="btn primary" id="btnSearchHistory">查询</button>
+          <button class="btn" id="btnExport">导出 CSV</button>
+          <button class="btn danger" id="btnClearHistory">清空</button>
+        </div>
+        <table>
+          <thead><tr><th style="width:150px">时间</th><th style="width:80px">类型</th><th>题目</th><th style="width:90px">答案</th><th style="width:90px">上游</th><th style="width:80px">耗时</th></tr></thead>
+          <tbody id="historyRows"></tbody>
+        </table>
+        <div class="pager">
+          <span id="pageInfo">-</span>
+          <button class="btn sm" id="btnPrev">上一页</button>
+          <button class="btn sm" id="btnNext">下一页</button>
+        </div>
+      </div>
+    </section>
 
+    <!-- 设置 -->
+    <section class="page hidden" id="page-settings">
+      <div class="grid cols-2">
+        <div class="card">
+          <h2>联网搜索</h2>
+          <div class="row">
+            <div class="field"><label>模式</label><select id="searchMode"><option value="always">总是搜索</option><option value="fallback">答不出才搜</option><option value="off">关闭</option></select></div>
+            <div class="field"><label>条数</label><input id="searchTopN" type="number" min="1" max="8" /></div>
+            <div class="field"><label>超时 ms</label><input id="searchTimeout" type="number" min="1000" max="30000" step="500" /></div>
+          </div>
+          <div class="row" style="margin-top:14px">
+            <div class="field" style="flex:2"><label>搜索自测</label><input id="searchProbe" type="text" placeholder="例如：蒙太奇" /></div>
+            <button class="btn" id="btnSearchProbe">搜索</button>
+          </div>
+          <div class="list" id="searchProbeResult" style="margin-top:12px"></div>
+        </div>
+
+        <div class="card">
+          <h2>答题策略</h2>
+          <div class="row">
+            <div class="field"><label>重试次数</label><input id="retryAttempts" type="number" min="1" max="5" /></div>
+            <div class="field"><label>退避 ms</label><input id="retryBackoff" type="number" min="0" max="5000" step="100" /></div>
+            <div class="field"><label>最大输出</label><input id="maxTokens" type="number" min="64" max="32768" step="64" /></div>
+          </div>
+          <label class="switch" style="margin-top:16px"><input id="judgementMap" type="checkbox" />判断题：字母答案映射为「对 / 错」</label>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <h2>运行信息</h2>
+        <div class="kv" id="sysInfo"></div>
+      </div>
+
+      <div class="actions" style="margin-top:16px">
+        <button class="btn primary" id="btnSaveSettings">保存设置</button>
+        <button class="btn" id="btnReloadConfig">重新加载配置</button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="drawerMask" class="drawer-mask hidden"></div>
+<div id="drawer" class="drawer hidden"></div>
 <div id="toast"></div>
 
 <script>
 (function () {
   "use strict";
-  var state = { providers: {}, routes: [], defaultProvider: "" };
 
-  function el(id) { return document.getElementById(id); }
+  var state = {
+    config: null,
+    overview: null,
+    providers: {},
+    routes: [],
+    defaultProvider: "",
+    history: { rows: [], total: 0, offset: 0, limit: 20, filters: { q: "", type: "", provider: "", since: 0 } }
+  };
+
+  var PAGES = {
+    overview: { title: "概览", sub: "运行状态、上游健康与最近答题" },
+    providers: { title: "上游服务", sub: "管理多个 OpenAI 兼容上游，可单独测试" },
+    routes: { title: "模型路由", sub: "按模型名分流，支持通配符与失败切换" },
+    history: { title: "答题记录", sub: "每答一题一条记录，可筛选、查看详情、导出 CSV" },
+    settings: { title: "设置", sub: "搜索策略、重试与数据文件位置" }
+  };
+
+  function $(id) { return document.getElementById(id); }
+  function esc(value) {
+    return String(value === undefined || value === null ? "" : value)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
   function toast(message, kind) {
     var node = document.createElement("div");
     node.className = "toast " + (kind || "");
     node.textContent = message;
-    el("toast").appendChild(node);
-    setTimeout(function () { node.remove(); }, 4000);
+    $("toast").appendChild(node);
+    setTimeout(function () { node.remove(); }, 4200);
   }
-  function request(path, options) {
+  function api(path, options) {
     return fetch(path, options).then(function (response) {
       return response.json().catch(function () { return {}; }).then(function (body) {
         if (!response.ok) throw new Error((body && body.error && body.error.message) || ("HTTP " + response.status));
@@ -193,194 +363,179 @@
       });
     });
   }
-  function setHealth(ok) {
-    el("healthDot").className = "dot " + (ok ? "ok" : "bad");
+  function postJson(path, payload) {
+    return api(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload || {}) });
+  }
+  function fmtTime(ts) {
+    if (!ts) return "-";
+    var date = new Date(ts);
+    if (isNaN(date.getTime())) return "-";
+    return date.toLocaleString("zh-CN", { hour12: false });
+  }
+  function fmtDuration(ms) {
+    var seconds = Math.floor((Number(ms) || 0) / 1000);
+    var days = Math.floor(seconds / 86400);
+    var hours = Math.floor((seconds % 86400) / 3600);
+    var minutes = Math.floor((seconds % 3600) / 60);
+    if (days) return days + " 天 " + hours + " 小时";
+    if (hours) return hours + " 小时 " + minutes + " 分";
+    return minutes + " 分 " + (seconds % 60) + " 秒";
+  }
+  function health(ok) {
+    $("healthDot").className = "dot " + (ok ? "ok" : "bad");
+    $("healthText").textContent = ok ? "服务正常" : "无法连接";
   }
 
-  function providerNames() { return Object.keys(state.providers); }
-
-  function renderProviders() {
-    var host = el("providers");
-    host.innerHTML = "";
-    providerNames().forEach(function (name) {
-      var provider = state.providers[name];
-      var box = document.createElement("div");
-      box.className = "provider";
-
-      var head = document.createElement("div");
-      head.className = "head";
-      var title = document.createElement("span");
-      title.className = "name";
-      title.textContent = name;
-      var badge = document.createElement("span");
-      badge.className = "badge";
-      badge.textContent = provider.enabled === false ? "已停用" : "启用中";
-      var grow = document.createElement("span");
-      grow.className = "grow";
-      var testBtn = document.createElement("button");
-      testBtn.className = "mini";
-      testBtn.textContent = "测试";
-      testBtn.addEventListener("click", function () { testProvider(name, testBtn); });
-      var delBtn = document.createElement("button");
-      delBtn.className = "mini";
-      delBtn.textContent = "删除";
-      delBtn.addEventListener("click", function () { deleteProvider(name); });
-      head.appendChild(title); head.appendChild(badge); head.appendChild(grow);
-      head.appendChild(testBtn); head.appendChild(delBtn);
-      box.appendChild(head);
-
-      var upLabel = document.createElement("label");
-      upLabel.textContent = "上游地址";
-      var upInput = document.createElement("input");
-      upInput.type = "text";
-      upInput.value = provider.upstream || "";
-      upInput.placeholder = "https://api.example.com";
-      upInput.addEventListener("input", function () { provider.upstream = upInput.value; });
-      box.appendChild(upLabel); box.appendChild(upInput);
-
-      var keyLabel = document.createElement("label");
-      keyLabel.textContent = "API Key";
-      var keyInput = document.createElement("input");
-      keyInput.type = "password";
-      keyInput.value = "";
-      keyInput.placeholder = provider.hasApiKey ? ("已保存：" + provider.apiKey + "（留空不改）") : "未设置";
-      keyInput.addEventListener("input", function () { provider.newApiKey = keyInput.value; });
-      box.appendChild(keyLabel); box.appendChild(keyInput);
-
-      var inline = document.createElement("div");
-      inline.className = "inline";
-      var enabled = document.createElement("input");
-      enabled.type = "checkbox";
-      enabled.checked = provider.enabled !== false;
-      enabled.addEventListener("change", function () { provider.enabled = enabled.checked; badge.textContent = enabled.checked ? "启用中" : "已停用"; });
-      var enabledLabel = document.createElement("label");
-      enabledLabel.style.margin = "0";
-      enabledLabel.textContent = "启用";
-      inline.appendChild(enabled); inline.appendChild(enabledLabel);
-      box.appendChild(inline);
-
-      host.appendChild(box);
+  // ---------- 路由/页面 ----------
+  function pageFromHash() {
+    var name = (location.hash || "#overview").replace(/^#/, "");
+    return PAGES[name] ? name : "overview";
+  }
+  function showPage(name) {
+    Object.keys(PAGES).forEach(function (key) {
+      $("page-" + key).classList.toggle("hidden", key !== name);
     });
-
-    var select = el("defaultProvider");
-    select.innerHTML = "";
-    providerNames().forEach(function (name) {
-      var option = document.createElement("option");
-      option.value = name;
-      option.textContent = name;
-      if (name === state.defaultProvider) option.selected = true;
-      select.appendChild(option);
+    Array.prototype.forEach.call(document.querySelectorAll(".nav button"), function (button) {
+      button.classList.toggle("active", button.getAttribute("data-page") === name);
     });
-    el("providerPill").textContent = providerNames().length + " 个上游 · 默认 " + (state.defaultProvider || "-");
+    $("pageTitle").textContent = PAGES[name].title;
+    $("pageSub").textContent = PAGES[name].sub;
+    if (name === "history") loadHistory();
+    if (name === "settings") renderSettings();
   }
+  window.addEventListener("hashchange", function () { showPage(pageFromHash()); });
+  Array.prototype.forEach.call(document.querySelectorAll(".nav button"), function (button) {
+    button.addEventListener("click", function () { location.hash = "#" + button.getAttribute("data-page"); });
+  });
 
-  function renderRoutes() {
-    var body = el("routes");
-    body.innerHTML = "";
-    state.routes.forEach(function (route, index) {
-      var tr = document.createElement("tr");
-      var tdModel = document.createElement("td");
-      var modelInput = document.createElement("input");
-      modelInput.type = "text";
-      modelInput.value = route.model || "";
-      modelInput.placeholder = "auto/*";
-      modelInput.addEventListener("input", function () { route.model = modelInput.value; });
-      tdModel.appendChild(modelInput);
-
-      var tdProvider = document.createElement("td");
-      var select = document.createElement("select");
-      providerNames().forEach(function (name) {
-        var option = document.createElement("option");
-        option.value = name;
-        option.textContent = name;
-        if (name === route.provider) option.selected = true;
-        select.appendChild(option);
-      });
-      select.addEventListener("change", function () { route.provider = select.value; });
-      tdProvider.appendChild(select);
-
-      var tdDel = document.createElement("td");
-      var del = document.createElement("button");
-      del.className = "mini";
-      del.textContent = "×";
-      del.addEventListener("click", function () { state.routes.splice(index, 1); renderRoutes(); });
-      tdDel.appendChild(del);
-
-      tr.appendChild(tdModel); tr.appendChild(tdProvider); tr.appendChild(tdDel);
-      body.appendChild(tr);
-    });
-    if (!state.routes.length) {
-      var tr = document.createElement("tr");
-      var td = document.createElement("td");
-      td.colSpan = 3;
-      td.className = "muted";
-      td.textContent = "暂无路由规则，全部走默认上游";
-      tr.appendChild(td);
-      body.appendChild(tr);
-    }
+  // ---------- 主题 ----------
+  var THEME_KEY = "ocs-relay-theme";
+  function applyTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+    $("btnTheme").textContent = theme === "dark" ? "切换浅色" : "切换深色";
+    try { localStorage.setItem(THEME_KEY, theme); } catch (e) {}
   }
+  $("btnTheme").addEventListener("click", function () {
+    applyTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
+  });
+  try { applyTheme(localStorage.getItem(THEME_KEY) || "dark"); } catch (e) { applyTheme("dark"); }
 
-  function addProvider() {
-    var name = window.prompt("新上游名称（例如 magpie）", "");
-    if (!name) return;
-    name = name.trim();
-    if (!name) return;
-    if (state.providers[name]) { toast("已存在同名上游", "bad"); return; }
-    state.providers[name] = { upstream: "", apiKey: "", hasApiKey: false, enabled: true };
-    renderProviders(); renderRoutes();
-  }
-
-  function deleteProvider(name) {
-    if (!window.confirm("删除上游 " + name + "？")) return;
-    delete state.providers[name];
-    state.routes = state.routes.filter(function (route) { return route.provider !== name; });
-    if (state.defaultProvider === name) state.defaultProvider = providerNames()[0] || "";
-    renderProviders(); renderRoutes();
-  }
-
-  function testProvider(name, button) {
-    button.disabled = true;
-    button.textContent = "测试中";
-    request("/api/test", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ provider: name })
-    }).then(function (result) {
-      if (result.ok) toast(name + " 连通正常 · " + result.status + " · " + result.ms + "ms", "ok");
-      else toast(name + " 失败 · " + result.status + " · " + String(result.error || "").slice(0, 100), "bad");
-    }).catch(function (error) { toast(name + " 测试失败：" + error.message, "bad"); })
-      .finally(function () { button.disabled = false; button.textContent = "测试"; });
-  }
-
-  function fill(config) {
-    state.providers = {};
-    Object.keys(config.providers || {}).forEach(function (name) {
-      var provider = config.providers[name] || {};
-      state.providers[name] = {
-        upstream: provider.upstream || "",
-        apiKey: provider.apiKey || "",
-        hasApiKey: !!provider.hasApiKey,
-        enabled: provider.enabled !== false,
-        newApiKey: ""
-      };
-    });
-    state.defaultProvider = config.defaultProvider || providerNames()[0] || "";
-    state.routes = (config.routes || []).map(function (route) { return { model: route.model, provider: route.provider }; })();
-    el("searchMode").value = config.search.mode;
-    el("topN").value = config.search.topN;
-    el("attempts").value = config.retry.attempts;
-    el("maxTokens").value = config.maxTokens;
-    el("judgementMap").checked = !!config.judgementMap;
-    el("configHint").textContent = "配置文件：" + (config.configPath || "config.json");
-    renderProviders(); renderRoutes();
-  }
-
+  // ---------- 配置加载 ----------
   function loadConfig() {
-    return request("/api/config").then(function (config) { fill(config); setHealth(true); })
-      .catch(function (error) { setHealth(false); toast("读取配置失败：" + error.message, "bad"); });
+    return api("/api/config").then(function (config) {
+      state.config = config;
+      state.providers = {};
+      Object.keys(config.providers || {}).forEach(function (name) {
+        var provider = config.providers[name] || {};
+        state.providers[name] = {
+          upstream: provider.upstream || "",
+          apiKey: provider.apiKey || "",
+          hasApiKey: !!provider.hasApiKey,
+          enabled: provider.enabled !== false,
+          newApiKey: ""
+        };
+      });
+      state.defaultProvider = config.defaultProvider || Object.keys(state.providers)[0] || "";
+      state.routes = (config.routes || []).map(function (route) { return { model: route.model, provider: route.provider }; });
+      $("versionText").textContent = "v" + (config.version || "1.3.0") + " · 本地中转";
+      renderProviders();
+      renderRoutes();
+      renderSettings();
+      return config;
+    }).catch(function (error) { health(false); toast("读取配置失败：" + error.message, "bad"); });
   }
 
-  function save() {
+  // ---------- 概览 ----------
+  function renderOverview(data) {
+    state.overview = data;
+    $("stToday").textContent = data.todayAnswers;
+    $("stTodaySub").textContent = "累计 " + data.totalAnswers + " 条";
+    $("stAvg").textContent = data.avgMs ? data.avgMs + " ms" : "-";
+    $("stFails").textContent = data.failCount;
+    $("stUptime").textContent = fmtDuration(data.uptimeMs);
+    $("stVersion").textContent = "v" + data.version;
+
+    var max = 1;
+    (data.buckets || []).forEach(function (bucket) { if (bucket.count > max) max = bucket.count; });
+    $("spark").innerHTML = (data.buckets || []).map(function (bucket, index) {
+      var height = Math.max(2, Math.round((bucket.count / max) * 88));
+      var label = index % 4 === 0 ? String(bucket.hour).padStart(2, "0") : "";
+      return '<div class="bar" style="height:' + height + 'px" title="' + esc(bucket.hour + " 时 · " + bucket.count + " 题") + '"><span>' + label + "</span></div>";
+    }).join("");
+
+    var perProvider = data.perProvider || {};
+    $("providerHealth").innerHTML = (data.providers || []).map(function (provider) {
+      var stats = perProvider[provider.name] || { total: 0, fails: 0 };
+      var badge = provider.enabled ? '<span class="badge ok">启用</span>' : '<span class="badge">停用</span>';
+      if (provider.default) badge += ' <span class="badge accent">默认</span>';
+      return '<div class="list-item"><span class="dot ' + (provider.enabled ? "ok" : "") + '"></span>' +
+        '<div class="grow"><strong>' + esc(provider.name) + "</strong> " + badge +
+        '<div class="muted mono" style="margin-top:2px">' + esc(provider.upstream) + "</div></div>" +
+        '<span class="muted">' + stats.total + " 题</span></div>";
+    }).join("") || '<div class="empty">暂无上游</div>';
+
+    $("recentAnswers").innerHTML = (data.recentAnswers || []).length
+      ? data.recentAnswers.map(function (row) {
+          return '<div class="list-item"><span class="badge">' + esc(row.type) + '</span>' +
+            '<div class="grow ellipsis">' + esc(row.question || "") + '</div>' +
+            '<strong>' + esc(row.answer || "-") + "</strong></div>";
+        }).join("")
+      : '<div class="empty">还没有答题记录</div>';
+
+    $("recentFails").innerHTML = (data.recentFails || []).length
+      ? data.recentFails.map(function (row) {
+          return '<div class="list-item"><span class="badge bad">' + esc(row.status || "ERR") + '</span>' +
+            '<div class="grow ellipsis">' + esc(row.q || "") + '</div>' +
+            '<span class="muted">' + esc(row.provider || "") + "</span></div>";
+        }).join("")
+      : '<div class="empty">最近没有失败</div>';
+  }
+
+  function loadOverview() {
+    return api("/api/overview").then(function (data) { renderOverview(data); health(true); })
+      .catch(function (error) { health(false); toast("概览加载失败：" + error.message, "bad"); });
+  }
+
+  // ---------- 上游 ----------
+  function renderProviders() {
+    var names = Object.keys(state.providers);
+    $("providerCards").innerHTML = names.map(function (name) {
+      var provider = state.providers[name];
+      var isDefault = name === state.defaultProvider;
+      return '<div class="provider-card">' +
+        '<div class="provider-head"><strong>' + esc(name) + "</strong>" +
+        (isDefault ? '<span class="badge accent">默认</span>' : "") +
+        '<span class="grow"></span>' +
+        '<label class="switch"><input type="checkbox" data-role="enabled" data-name="' + esc(name) + '"' + (provider.enabled ? " checked" : "") + " />启用</label></div>" +
+        '<div class="field"><label>上游地址</label><input type="text" data-role="upstream" data-name="' + esc(name) + '" value="' + esc(provider.upstream) + '" /></div>' +
+        '<div class="field"><label>API Key</label><input type="password" data-role="apikey" data-name="' + esc(name) + '" placeholder="' + esc(provider.hasApiKey ? "已保存：" + provider.apiKey + "（留空不改）" : "未设置") + '" /></div>' +
+        '<div class="actions"><button class="btn sm" data-role="test" data-name="' + esc(name) + '">测试</button>' +
+        '<button class="btn sm danger" data-role="remove" data-name="' + esc(name) + '">删除</button></div>' +
+        "</div>";
+    }).join("") || '<div class="empty">还没有上游，下面添加一个</div>';
+
+    $("defaultProvider").innerHTML = names.map(function (name) {
+      return '<option value="' + esc(name) + '"' + (name === state.defaultProvider ? " selected" : "") + ">" + esc(name) + "</option>";
+    }).join("");
+
+    Array.prototype.forEach.call(document.querySelectorAll('[data-role="upstream"]'), function (input) {
+      input.addEventListener("input", function () { state.providers[input.getAttribute("data-name")].upstream = input.value; });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-role="apikey"]'), function (input) {
+      input.addEventListener("input", function () { state.providers[input.getAttribute("data-name")].newApiKey = input.value; });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-role="enabled"]'), function (input) {
+      input.addEventListener("change", function () { state.providers[input.getAttribute("data-name")].enabled = input.checked; });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-role="test"]'), function (button) {
+      button.addEventListener("click", function () { testProvider(button.getAttribute("data-name"), button); });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-role="remove"]'), function (button) {
+      button.addEventListener("click", function () { removeProvider(button.getAttribute("data-name")); });
+    });
+  }
+
+  function providerPayload() {
     var providers = {};
     Object.keys(state.providers).forEach(function (name) {
       var provider = state.providers[name];
@@ -388,97 +543,285 @@
       if (provider.newApiKey) entry.apiKey = provider.newApiKey;
       providers[name] = entry;
     });
+    return providers;
+  }
+
+  function saveProviders() {
+    var payload = { providers: providerPayload(), defaultProvider: $("defaultProvider").value };
+    return postJson("/api/config", payload).then(function (config) {
+      toast("上游已保存", "ok");
+      return loadConfig();
+    }).catch(function (error) { toast("保存失败：" + error.message, "bad"); });
+  }
+
+  function testProvider(name, button) {
+    if (button) { button.disabled = true; button.textContent = "测试中"; }
+    postJson("/api/test", { provider: name }).then(function (result) {
+      if (result.ok) toast(name + " 正常 · " + result.status + " · " + result.ms + "ms", "ok");
+      else toast(name + " 失败 · " + result.status + " · " + String(result.error || "").slice(0, 90), "bad");
+    }).catch(function (error) { toast(name + " 测试失败：" + error.message, "bad"); })
+      .finally(function () { if (button) { button.disabled = false; button.textContent = "测试"; } });
+  }
+
+  function testAll() {
+    toast("正在测试全部上游…");
+    postJson("/api/providers/test-all", {}).then(function (data) {
+      (data.results || []).forEach(function (result) {
+        if (result.skipped) return;
+        toast(result.provider + " · " + (result.ok ? "正常 " + result.ms + "ms" : "失败 " + result.status), result.ok ? "ok" : "bad");
+      });
+      loadOverview();
+    }).catch(function (error) { toast("测试失败：" + error.message, "bad"); });
+  }
+
+  function removeProvider(name) {
+    if (!window.confirm("删除上游 " + name + "？相关路由也会被移除。")) return;
+    delete state.providers[name];
+    state.routes = state.routes.filter(function (route) { return route.provider !== name; });
+    if (state.defaultProvider === name) state.defaultProvider = Object.keys(state.providers)[0] || "";
+    renderProviders();
+    renderRoutes();
+  }
+
+  function addProvider() {
+    var name = $("newProviderName").value.trim();
+    var upstream = $("newProviderUpstream").value.trim();
+    if (!name) { toast("先填名称", "bad"); return; }
+    if (state.providers[name]) { toast("名称已存在", "bad"); return; }
+    state.providers[name] = { upstream: upstream, apiKey: "", hasApiKey: false, enabled: true, newApiKey: $("newProviderKey").value.trim() };
+    $("newProviderName").value = "";
+    $("newProviderUpstream").value = "";
+    $("newProviderKey").value = "";
+    renderProviders();
+    toast("已添加，记得点保存", "ok");
+  }
+
+  // ---------- 路由 ----------
+  function renderRoutes() {
+    var names = Object.keys(state.providers);
+    $("routeRows").innerHTML = state.routes.length ? state.routes.map(function (route, index) {
+      var options = names.map(function (name) {
+        return '<option value="' + esc(name) + '"' + (name === route.provider ? " selected" : "") + ">" + esc(name) + "</option>";
+      }).join("");
+      return "<tr><td><input type=\"text\" data-role=\"route-model\" data-index=\"" + index + '" value="' + esc(route.model) + '" placeholder="auto/*" /></td>' +
+        '<td><select data-role="route-provider" data-index="' + index + '">' + options + "</select></td>" +
+        '<td><button class="btn sm danger" data-role="route-remove" data-index="' + index + '">×</button></td></tr>';
+    }).join("") : '<tr><td colspan="3" class="empty">暂无规则，全部走默认上游</td></tr>';
+
+    Array.prototype.forEach.call(document.querySelectorAll('[data-role="route-model"]'), function (input) {
+      input.addEventListener("input", function () { state.routes[Number(input.getAttribute("data-index"))].model = input.value; });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-role="route-provider"]'), function (select) {
+      select.addEventListener("change", function () { state.routes[Number(select.getAttribute("data-index"))].provider = select.value; });
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-role="route-remove"]'), function (button) {
+      button.addEventListener("click", function () {
+        state.routes.splice(Number(button.getAttribute("data-index")), 1);
+        renderRoutes();
+      });
+    });
+  }
+
+  function saveRoutes() {
+    return postJson("/api/config", { routes: state.routes.filter(function (r) { return r.model && r.provider; }) })
+      .then(function () { toast("路由已保存", "ok"); return loadConfig(); })
+      .catch(function (error) { toast("保存失败：" + error.message, "bad"); });
+  }
+
+  function probeRoute() {
+    var model = $("routeProbeModel").value.trim();
+    if (!model) { toast("先输入模型名", "bad"); return; }
+    api("/api/routes/resolve?model=" + encodeURIComponent(model)).then(function (data) {
+      $("routeProbeResult").innerHTML = data.provider
+        ? "模型 <span class=\"mono\">" + esc(data.model) + "</span> → 上游 <strong>" + esc(data.provider) + "</strong>"
+        : "没有可用上游";
+    }).catch(function (error) { $("routeProbeResult").textContent = "解析失败：" + error.message; });
+  }
+
+  // ---------- 记录 ----------
+  function loadHistory() {
+    var filters = state.history.filters;
+    var params = ["n=" + state.history.limit, "offset=" + state.history.offset];
+    if (filters.q) params.push("q=" + encodeURIComponent(filters.q));
+    if (filters.type) params.push("type=" + encodeURIComponent(filters.type));
+    if (filters.provider) params.push("provider=" + encodeURIComponent(filters.provider));
+    if (filters.since) params.push("since=" + filters.since);
+
+    return api("/api/history?" + params.join("&")).then(function (data) {
+      state.history.rows = data.entries || [];
+      state.history.total = data.total || 0;
+      renderHistory();
+    }).catch(function (error) { toast("记录加载失败：" + error.message, "bad"); });
+  }
+
+  function renderHistory() {
+    var rows = state.history.rows;
+    var total = state.history.total;
+    $("historyTotal").textContent = total ? "共 " + total + " 条" : "";
+    $("historyRows").innerHTML = rows.length ? rows.map(function (row, index) {
+      return '<tr class="clickable" data-index="' + index + '">' +
+        '<td class="muted">' + esc(fmtTime(row.ts)) + "</td>" +
+        '<td><span class="badge">' + esc(row.type) + "</span></td>" +
+        '<td class="ellipsis">' + esc(row.question || "") + "</td>" +
+        '<td><strong>' + esc(row.answer || "-") + "</strong></td>" +
+        '<td class="muted">' + esc(row.provider || "-") + "</td>" +
+        '<td class="muted">' + (row.ms ? row.ms + "ms" : "-") + "</td></tr>";
+    }).join("") : '<tr><td colspan="6" class="empty">没有匹配的记录</td></tr>';
+
+    Array.prototype.forEach.call(document.querySelectorAll("#historyRows tr.clickable"), function (tr) {
+      tr.addEventListener("click", function () { openDrawer(rows[Number(tr.getAttribute("data-index"))]); });
+    });
+
+    var page = Math.floor(state.history.offset / state.history.limit) + 1;
+    var pages = Math.max(1, Math.ceil(total / state.history.limit));
+    $("pageInfo").textContent = "第 " + page + " / " + pages + " 页";
+    $("btnPrev").disabled = state.history.offset <= 0;
+    $("btnNext").disabled = state.history.offset + state.history.limit >= total;
+  }
+
+  function openDrawer(row) {
+    if (!row) return;
+    $("drawer").innerHTML =
+      '<h3>答题详情</h3>' +
+      '<div class="kv">' +
+      '<div class="k">时间</div><div class="v">' + esc(fmtTime(row.ts)) + "</div>" +
+      '<div class="k">类型</div><div class="v">' + esc(row.type) + "</div>" +
+      '<div class="k">上游</div><div class="v">' + esc(row.provider || "-") + "</div>" +
+      '<div class="k">模型</div><div class="v mono">' + esc(row.model || "-") + "</div>" +
+      '<div class="k">答案</div><div class="v"><strong>' + esc(row.answer || "-") + "</strong></div>" +
+      '<div class="k">联网</div><div class="v">' + (row.searched ? "是" : "否") + "</div>" +
+      '<div class="k">判断映射</div><div class="v">' + (row.judgementMapped ? "已映射" : "-") + "</div>" +
+      '<div class="k">耗时</div><div class="v">' + (row.ms ? row.ms + " ms" : "-") + "</div>" +
+      "</div>" +
+      '<h3 style="margin-top:20px">题目</h3><div class="mono" style="white-space:pre-wrap">' + esc(row.question || "") + "</div>" +
+      '<h3 style="margin-top:20px">选项</h3><div class="list">' +
+      (row.options && row.options.length ? row.options.map(function (option) { return '<div class="list-item">' + esc(option) + "</div>"; }).join("") : '<div class="empty">无选项</div>') +
+      "</div>" +
+      '<div class="actions" style="margin-top:20px"><button class="btn" id="drawerClose">关闭</button></div>';
+    $("drawer").classList.remove("hidden");
+    $("drawerMask").classList.remove("hidden");
+    $("drawerClose").addEventListener("click", closeDrawer);
+  }
+  function closeDrawer() {
+    $("drawer").classList.add("hidden");
+    $("drawerMask").classList.add("hidden");
+  }
+  $("drawerMask").addEventListener("click", closeDrawer);
+
+  function searchHistory() {
+    var range = Number($("hRange").value) || 0;
+    var since = 0;
+    if (range === 1) { var today = new Date(); today.setHours(0, 0, 0, 0); since = today.getTime(); }
+    if (range === 7) since = Date.now() - 7 * 86400000;
+    state.history.filters = { q: $("hq").value.trim(), type: $("hType").value, provider: $("hProvider").value, since: since };
+    state.history.offset = 0;
+    loadHistory();
+  }
+
+  // ---------- 设置 ----------
+  function renderSettings() {
+    var config = state.config;
+    if (!config) return;
+    $("searchMode").value = config.search.mode;
+    $("searchTopN").value = config.search.topN;
+    $("searchTimeout").value = config.search.timeoutMs;
+    $("retryAttempts").value = config.retry.attempts;
+    $("retryBackoff").value = config.retry.backoffMs;
+    $("maxTokens").value = config.maxTokens;
+    $("judgementMap").checked = !!config.judgementMap;
+
+    $("sysInfo").innerHTML = [
+      ["配置版本", "v" + config.version],
+      ["配置文件", config.configPath || "config.json"],
+      ["数据文件", (config.configPath || "").replace(/config\.json$/, "history.jsonl")],
+      ["默认上游", config.defaultProvider],
+      ["监听地址", (config.host || "127.0.0.1") + ":" + config.port],
+      ["搜索模式", config.search.mode]
+    ].map(function (pair) {
+      return '<div class="k">' + esc(pair[0]) + '</div><div class="v mono">' + esc(pair[1]) + "</div>";
+    }).join("");
+  }
+
+  function saveSettings() {
     var payload = {
-      providers: providers,
-      defaultProvider: el("defaultProvider").value,
-      routes: state.routes.filter(function (route) { return route.model && route.provider; }),
-      search: { mode: el("searchMode").value, topN: Number(el("topN").value) },
-      retry: { attempts: Number(el("attempts").value) },
-      maxTokens: Number(el("maxTokens").value),
-      judgementMap: el("judgementMap").checked
+      search: {
+        mode: $("searchMode").value,
+        topN: Number($("searchTopN").value),
+        timeoutMs: Number($("searchTimeout").value)
+      },
+      retry: { attempts: Number($("retryAttempts").value), backoffMs: Number($("retryBackoff").value) },
+      maxTokens: Number($("maxTokens").value),
+      judgementMap: $("judgementMap").checked
     };
-    el("btnSave").disabled = true;
-    request("/api/config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
-      .then(function (config) { fill(config); toast("已保存并立即生效", "ok"); setHealth(true); })
-      .catch(function (error) { toast("保存失败：" + error.message, "bad"); })
-      .finally(function () { el("btnSave").disabled = false; });
+    return postJson("/api/config", payload).then(function () {
+      toast("设置已保存", "ok");
+      return loadConfig();
+    }).catch(function (error) { toast("保存失败：" + error.message, "bad"); });
   }
 
-  function renderLogs(entries) {
-    var body = el("logBody");
-    if (!entries || !entries.length) {
-      body.innerHTML = '<tr><td colspan="6" class="muted">暂无记录</td></tr>';
-      return;
-    }
-    body.innerHTML = "";
-    entries.forEach(function (entry) {
-      var tr = document.createElement("tr");
-      function cell(text, className, title) {
-        var td = document.createElement("td");
-        td.textContent = text;
-        if (className) td.className = className;
-        if (title) td.title = title;
-        return td;
-      }
-      tr.appendChild(cell(entry.ts ? new Date(entry.ts).toLocaleTimeString() : "-", "muted"));
-      tr.appendChild(cell(entry.provider || "-", "muted"));
-      tr.appendChild(cell(entry.status || (entry.ok ? "200" : "ERR"), entry.ok ? "status-ok" : "status-bad"));
-      tr.appendChild(cell(entry.ms ? entry.ms + "ms" : "-"));
-      tr.appendChild(cell(entry.q || (entry.event || "-"), "q", entry.q || ""));
-      tr.appendChild(cell(entry.content || "-", "a", entry.content || ""));
-      body.appendChild(tr);
-    });
+  function probeSearch() {
+    var query = $("searchProbe").value.trim();
+    if (!query) { toast("先输入关键词", "bad"); return; }
+    $("searchProbeResult").innerHTML = '<div class="empty">搜索中…</div>';
+    api("/search?q=" + encodeURIComponent(query)).then(function (data) {
+      $("searchProbeResult").innerHTML = (data.items || []).length
+        ? data.items.map(function (item) {
+            return '<div class="list-item"><div class="grow"><strong>' + esc(item.title) + "</strong>" +
+              '<div class="muted" style="margin-top:2px">' + esc(item.snippet) + "</div></div></div>";
+          }).join("")
+        : '<div class="empty">没有结果</div>';
+    }).catch(function (error) { $("searchProbeResult").innerHTML = '<div class="empty">搜索失败：' + esc(error.message) + "</div>"; });
   }
 
-  function renderHistory(entries) {
-    var body = el("historyBody");
-    if (!entries || !entries.length) {
-      body.innerHTML = '<tr><td colspan="6" class="muted">暂无记录</td></tr>';
-      return;
-    }
-    body.innerHTML = "";
-    entries.forEach(function (entry) {
-      var tr = document.createElement("tr");
-      function cell(text, className, title) {
-        var td = document.createElement("td");
-        td.textContent = text;
-        if (className) td.className = className;
-        if (title) td.title = title;
-        return td;
-      }
-      tr.appendChild(cell(entry.ts ? new Date(entry.ts).toLocaleString() : "-", "muted"));
-      tr.appendChild(cell(entry.type || "-", "muted"));
-      tr.appendChild(cell(entry.question || "-", "q", entry.question || ""));
-      tr.appendChild(cell(entry.answer || "-", "a", entry.answer || ""));
-      tr.appendChild(cell(entry.provider || "-", "muted"));
-      tr.appendChild(cell(entry.ms ? entry.ms + "ms" : "-"));
-      body.appendChild(tr);
-    });
-  }
-
-  function refresh() {
-    request("/api/stats").then(function (stats) {
-      el("sTotal").textContent = stats.total;
-      el("sFails").textContent = stats.fails;
-      el("sSearched").textContent = stats.searched;
-      el("sAvg").textContent = stats.avgMs;
-      el("statsHint").textContent = "上游：" + (stats.providers || []).join(" / ") + " · 默认 " + stats.defaultProvider + " · 搜索 " + stats.searchMode;
-      setHealth(true);
-    }).catch(function () { setHealth(false); });
-    request("/api/logs?n=20").then(function (data) { renderLogs(data.entries); }).catch(function () {});
-    request("/api/history?n=20").then(function (data) { renderHistory(data.entries); }).catch(function () {});
-  }
-
-  el("btnSave").addEventListener("click", save);
-  el("btnRefresh").addEventListener("click", function () { loadConfig(); refresh(); });
-  el("btnAddProvider").addEventListener("click", addProvider);
-  el("btnAddRoute").addEventListener("click", function () {
-    state.routes.push({ model: "", provider: state.defaultProvider || providerNames()[0] || "" });
+  // ---------- 事件绑定 ----------
+  $("btnRefresh").addEventListener("click", function () { refreshAll(); });
+  $("btnQuickSave").addEventListener("click", function () { saveProviders().then(saveRoutes).then(saveSettings); });
+  $("btnTestAll").addEventListener("click", testAll);
+  $("btnTestAll2").addEventListener("click", testAll);
+  $("btnSaveProviders").addEventListener("click", saveProviders);
+  $("btnAddProvider").addEventListener("click", addProvider);
+  $("btnAddRoute").addEventListener("click", function () {
+    state.routes.push({ model: "", provider: state.defaultProvider || Object.keys(state.providers)[0] || "" });
     renderRoutes();
   });
-  el("btnExportHistory").addEventListener("click", function () { window.open("/api/history.csv", "_blank"); });
-  loadConfig().then(refresh);
-  setInterval(refresh, 10000);
+  $("btnSaveRoutes").addEventListener("click", saveRoutes);
+  $("btnResolveRoute").addEventListener("click", probeRoute);
+  $("btnSearchHistory").addEventListener("click", searchHistory);
+  $("btnPrev").addEventListener("click", function () {
+    state.history.offset = Math.max(0, state.history.offset - state.history.limit);
+    loadHistory();
+  });
+  $("btnNext").addEventListener("click", function () {
+    if (state.history.offset + state.history.limit < state.history.total) {
+      state.history.offset += state.history.limit;
+      loadHistory();
+    }
+  });
+  $("btnExport").addEventListener("click", function () { window.open("/api/history.csv", "_blank"); });
+  $("btnClearHistory").addEventListener("click", function () {
+    if (!window.confirm("清空全部答题记录？此操作不可恢复。")) return;
+    postJson("/api/history/clear", {}).then(function () { toast("记录已清空", "ok"); loadHistory(); loadOverview(); })
+      .catch(function (error) { toast("清空失败：" + error.message, "bad"); });
+  });
+  $("btnSearchProbe").addEventListener("click", probeSearch);
+  $("btnSaveSettings").addEventListener("click", saveSettings);
+  $("btnReloadConfig").addEventListener("click", function () { loadConfig(); toast("已重新加载", "ok"); });
+  $("hq").addEventListener("keydown", function (event) { if (event.key === "Enter") searchHistory(); });
+
+  function refreshAll() {
+    return Promise.all([loadOverview(), loadConfig()]).catch(function () {});
+  }
+
+  // 首次加载
+  loadConfig().then(function () {
+    $("hProvider").innerHTML = '<option value="">全部</option>' + Object.keys(state.providers).map(function (name) {
+      return '<option value="' + esc(name) + '">' + esc(name) + "</option>";
+    }).join("");
+    return loadOverview();
+  }).then(function () {
+    if (pageFromHash() === "history") loadHistory();
+  });
+  setInterval(function () { loadOverview(); }, 15000);
 })();
 </script>
 </body>

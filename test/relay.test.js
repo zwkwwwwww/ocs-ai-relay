@@ -148,4 +148,41 @@ test("routes by model, fails over between providers and maps judgement", async (
   const csv = await fetch(base + "/api/history.csv").then((r) => r.text());
   assert.ok(csv.indexOf("题目") >= 0);
   assert.ok(csv.indexOf("答案") >= 0);
+
+  // 记录筛选：按类型 / 关键词 / 分页
+  const onlyJudgement = await fetch(base + "/api/history?type=judgement").then((r) => r.json());
+  assert.equal(onlyJudgement.entries.length >= 1, true);
+  assert.equal(onlyJudgement.entries.every((row) => row.type === "judgement"), true);
+
+  const keyword = await fetch(base + "/api/history?q=" + encodeURIComponent("首都")).then((r) => r.json());
+  assert.equal(keyword.entries.every((row) => row.question.indexOf("首都") >= 0), true);
+
+  const paged = await fetch(base + "/api/history?n=1&offset=0").then((r) => r.json());
+  assert.equal(paged.entries.length, 1);
+  assert.equal(paged.total >= 3, true);
+
+  // 概览聚合
+  const overview = await fetch(base + "/api/overview").then((r) => r.json());
+  assert.equal(overview.totalAnswers >= 3, true);
+  assert.equal(overview.buckets.length, 24);
+  assert.equal(overview.providers.length, 3);
+  assert.equal(typeof overview.avgMs, "number");
+
+  // 路由解析
+  const resolved = await fetch(base + "/api/routes/resolve?model=" + encodeURIComponent("auto/deepseek-v4.1-flash")).then((r) => r.json());
+  assert.equal(resolved.provider, "local");
+  const fallbackRoute = await fetch(base + "/api/routes/resolve?model=deepseek-flash").then((r) => r.json());
+  assert.equal(fallbackRoute.provider, "down");
+
+  // 批量测试
+  const testAll = await postJson(base + "/api/providers/test-all", {});
+  assert.equal(Array.isArray(testAll.json.results), true);
+  const localResult = testAll.json.results.find((item) => item.provider === "local");
+  assert.equal(localResult.ok, true);
+
+  // 清空记录
+  const cleared = await postJson(base + "/api/history/clear", {});
+  assert.equal(cleared.json.ok, true);
+  const afterClear = await fetch(base + "/api/history").then((r) => r.json());
+  assert.equal(afterClear.total, 0);
 });
